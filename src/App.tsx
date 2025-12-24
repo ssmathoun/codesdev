@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import CodeEditor from './components/CodeEditor'
+import MainLayout from './layouts/MainLayout'
 import './App.css'
 
 function App() {
@@ -12,8 +12,8 @@ function App() {
 
     },
     {
-      path: "/editor",
-      element: <CodeEditor />
+      path: "/editor/:id",
+      element: <MainLayout />
     }
   ]);
 

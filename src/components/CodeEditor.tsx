@@ -27,9 +27,8 @@ export default function CodeEditor() {
 
   return (
     <>
-    <button onClick={showValue}>Show Value</button>
     <Editor 
-      height="90vh"
+      height="100vh"
       theme="vs-dark" 
       defaultLanguage="javascript" 
       defaultValue="// some comment" 
