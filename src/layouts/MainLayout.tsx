@@ -3,7 +3,7 @@ import CodeEditor from "../components/CodeEditor"
 import FileSidebar from "../components/FileSidebar"
 
 export default function MainLayout() {
-    const [sidebarWidth, setSidebarWidth] = useState("20"); // Tracks FileSidebar Width
+    const [sidebarWidth, setSidebarWidth] = useState("15"); // Tracks FileSidebar Width
     
     /*
     Function to resize the sidebar on mouse down event.
@@ -40,7 +40,7 @@ export default function MainLayout() {
                     {/* Resize Gutter */}
                     <div className="w-1 h-screen bg-[#1e1e1e] active:bg-blue-500 cursor-col-resize"
                             onMouseDown={handleMouseDown}></div>
-                            
+
                     <div className="flex-1">
                         <CodeEditor />
                     </div>

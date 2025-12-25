@@ -35,6 +35,7 @@ export default function CodeEditor() {
       onMount={handleEditorDidMount}
       options={{
         automaticLayout: true,
+        fontFamily: "'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, 'Courier New', monospace",
         fontSize: 14,
         minimap: { enabled: false },
       }}
