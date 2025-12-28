@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import type folderStructureData from "../types/types";
 import FileTabs from './FileTabs';
 
-export default function CodeEditor({data, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
+export default function CodeEditor({data, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // Stores current editor content
 
   /*
@@ -32,12 +32,13 @@ export default function CodeEditor({data, openedId, handleOpenedId, openedFileTa
       <FileTabs data={data} openedId={openedId} handleOpenedId={handleOpenedId}
       openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
       expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
-
+      
+      {openedId !== null ? (
       <Editor 
         height="100vh"
         theme="vs-dark" 
         defaultLanguage="javascript" 
-        defaultValue="// some comment" 
+        value={itemLookup.get(openedId)?.content}
         onMount={handleEditorDidMount}
         options={{
           automaticLayout: true,
@@ -46,6 +47,7 @@ export default function CodeEditor({data, openedId, handleOpenedId, openedFileTa
           minimap: { enabled: false },
         }}
       />
+      ) : null}
     </>
   );
 }
