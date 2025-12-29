@@ -2,10 +2,10 @@ import Editor, { DiffEditor, useMonaco, loader } from '@monaco-editor/react';
 import type { OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { useRef } from 'react';
-import type folderStructureData from "../types/types";
+import type { folderStructureData } from "../types/types";
 import FileTabs from './FileTabs';
 
-export default function CodeEditor({data, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
+export default function CodeEditor({data, updateFileContent, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], updateFileContent: (id: number, newContent: string) => void, addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // Stores current editor content
 
   /*
@@ -20,7 +20,9 @@ export default function CodeEditor({data, addItemToData, openedId, handleOpenedI
     Function to handle editor content change event
   */
   function handleEditorChange(value: string | undefined) {
-    console.log('Editor value changed:', value);
+    if (openedId !== null && typeof(value) === "string") {
+      updateFileContent(openedId, value);
+    }
   }
   
   function showValue() {
@@ -40,6 +42,7 @@ export default function CodeEditor({data, addItemToData, openedId, handleOpenedI
         defaultLanguage="javascript" 
         value={itemLookup.get(openedId)?.content}
         onMount={handleEditorDidMount}
+        onChange={handleEditorChange}
         options={{
           automaticLayout: true,
           fontFamily: "'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, 'Courier New', monospace",

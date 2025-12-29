@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import debounce from "lodash.debounce";
 import CodeEditor from "../components/CodeEditor"
 import FileSidebar from "../components/FileSidebar"
-import type folderStructureData from "../types/types";
+import type { folderStructureData } from "../types/types";
+import Modal from "../components/Modal";
 
 const dirData: folderStructureData[] = [
     { id: 1, name: 'index.tsx', type: 'file', content: 'index.tsx'},
@@ -21,7 +23,9 @@ const dirData: folderStructureData[] = [
 
 export default function MainLayout() {
     const [data, setData] = useState<folderStructureData[]>(dirData);
-    const addItemToData = (newItem: folderStructureData, parentId: number | null = null) => {
+    const addItemToData = (newItem: folderStructureData) : void => {
+        const parentId = newItem.parent ?? null;
+        
         if (parentId === null) {
             setData(prevData => [...prevData, newItem]);
         }
@@ -43,6 +47,23 @@ export default function MainLayout() {
             setData(prevData => addItemRecusivley(prevData));
         }
     };
+
+    const updateFileContent = (id: number, newContent: string) : void => {
+        const updateContentRecursively = (items: folderStructureData[]): folderStructureData[] => {
+            return items.map(item => {
+                if (item.id === id && item.type === "file") {
+                    return { ...item, content: newContent };
+                }
+                else {
+                    if (item.children) {
+                        return { ...item, children: updateContentRecursively(item.children) };
+                    }
+                    return item;
+                }
+            })
+        }
+        setData(prevData => updateContentRecursively(prevData) );
+    }
     
     const [sidebarWidth, setSidebarWidth] = useState("15"); // Tracks FileSidebar Width
     const [openedId, setOpenedId] = useState<number | null>(null); // Tracks Open File/Folder IDs
@@ -97,6 +118,53 @@ export default function MainLayout() {
         }
     }
 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [newItemName, setNewItemName] = useState("");
+    const [newItemType, setNewItemType] = useState(null as "file" | "folder" | null);
+
+    const debouncedUpdate = useCallback(
+        debounce((id: number, content: string) => {
+            updateFileContent(id, content);
+        }, 500),
+        [data]
+    );
+
+    useEffect(() => {
+        return () => {
+            debouncedUpdate.cancel();
+        };
+    }, [debouncedUpdate]);
+
+    const addNewItem = (itemName: string) => {
+        const trimmedName = itemName.trim();
+        if (trimmedName === "" || newItemType === null) {
+            return;
+        }
+
+        const newItemId = Date.now();
+
+        addItemToData({
+            id: newItemId,
+            name: itemName,
+            type: newItemType!,
+            parent: pendingParentId,
+            content: newItemType === "file" ? "" : undefined,
+            children: newItemType === "folder" ? [] : undefined,
+        });
+
+        if (pendingParentId !== null) {
+            setExpandedIds(prev => prev.includes(pendingParentId!) ? prev : [...prev, pendingParentId!]);
+        }
+
+        setNewItemType(null);
+        setOpenedId(newItemId);
+        setNewItemName("");
+        setIsModalOpen(false);
+        setPendingParentId(null);
+    }
+
+    const [pendingParentId, setPendingParentId] = useState<number | null>(null);
+
     /*
     Function to resize the sidebar on mouse down event.
     */
@@ -118,13 +186,51 @@ export default function MainLayout() {
 
     return (
         <>
+            <Modal
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)}
+                title={ `Create New ${newItemType}` }
+            >
+                <form 
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        addNewItem(newItemName);
+                    }}
+                    className="flex flex-col gap-4">
+
+                    <input
+                        autoFocus
+                        type="text"
+                        className="bg-[#2A2A2A] border border-zinc-600 p-2 rounded text-white outline-none focus:border-[#DC2626]"
+                        placeholder={newItemType === "file" ? "Eg: main.ts" : "Eg: src"}
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            className="text-zinc-400 hover:text-white px-3"
+                            onClick={() => setIsModalOpen(false)}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="bg-[#DC26268e] hover:bg-[#DC2626] text-white px-4 py-2 rounded">
+                            Create
+                        </button>
+                    </div>
+                </form>
+                      
+            </Modal>
+
             <div className="grid grid-rows-[48px_1fr] h-screen w-full">
 
                 {/* Top Navbar */}
                 <nav className="flex bg-[#DC2626] text-white"></nav>
 
                 <div className="h-full flex">
-                    <FileSidebar data={data} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
+                    <FileSidebar data={data} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                                     expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
 
@@ -133,13 +239,14 @@ export default function MainLayout() {
                             onMouseDown={handleMouseDown}></div>
 
                     <div className="flex-1">
-                        <CodeEditor data={data} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                        <CodeEditor data={data} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                         openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                         expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                     </div>
 
                 </div>
             </div>
+            
         </>
     )
 }

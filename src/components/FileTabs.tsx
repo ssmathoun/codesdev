@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type folderStructureData from "../types/types";
+import type { folderStructureData } from "../types/types";
 import { X } from "lucide-react";
 
 export default function FileTabs({data, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId,

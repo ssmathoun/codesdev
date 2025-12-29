@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, FolderPlus, FilePlus } from "lucide-react";
-import type folderStructureData from "../types/types";
+import type { folderStructureData } from "../types/types";
 
-export default function FolderStructure({ data, addItemToData, depth = 0, isIdOpened, handleIsIdOpened, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: { data: folderStructureData[], addItemToData: (item: folderStructureData) => void, depth?: number, isIdOpened: number | null, handleIsIdOpened: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
+export default function FolderStructure({ data, pendingParentId, setPendingParentId, newItemType, setNewItemType, isModalOpen, setIsModalOpen, addItemToData, depth = 0, isIdOpened, handleIsIdOpened, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: { data: folderStructureData[], pendingParentId: number | null, setPendingParentId: (prev: number | null) => void, newItemType: "file" | "folder" | null, setNewItemType: (prev: "file" | "folder") => void, isModalOpen: boolean, setIsModalOpen: (prev: boolean) => void, addItemToData: (item: folderStructureData) => void, depth?: number, isIdOpened: number | null, handleIsIdOpened: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
     
     function handleClick(item: folderStructureData) {
         handleExpandedIds(item.id);
@@ -10,6 +10,13 @@ export default function FolderStructure({ data, addItemToData, depth = 0, isIdOp
         if (item.type === "file") {
             handleOpenedFileTabsId(item.id);
         }
+    }
+
+    function addItem(e: React.MouseEvent, itemType: "file" | "folder", parentId: number) {
+        e.stopPropagation();
+        setIsModalOpen(true);
+        setNewItemType(itemType);
+        setPendingParentId(parentId);
     }
 
     return (
@@ -30,12 +37,12 @@ export default function FolderStructure({ data, addItemToData, depth = 0, isIdOp
                         <div onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 12}px`}} className={(item.id === isIdOpened) ? "group bg-[#DC26268e] flex gap-1 items-center" : "group flex gap-1 hover:bg-[#2e2e2e] items-center"}>
                                 {isOpen ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
                             {item.name}
-                            <FilePlus size={16} className="hidden group-hover:flex text-zinc-500 hover:text-white ml-auto mr-2"/>
-                            <FolderPlus size={16} className="hidden text-zinc-500 hover:text-white group-hover:flex mr-2"/>
+                            <FilePlus onClick= {(e) => addItem(e, "file", item.id)} size={16} className="hidden group-hover:flex text-zinc-500 hover:text-white ml-auto mr-2"/>
+                            <FolderPlus onClick= {(e) => addItem(e, "folder", item.id)} size={16} className="hidden text-zinc-500 hover:text-white group-hover:flex mr-2"/>
                         </div>
 
                         {isOpen && typeof(item.children) !== "undefined" ? 
-                        <FolderStructure data={item.children} addItemToData={addItemToData} depth={depth + 1} isIdOpened={isIdOpened} handleIsIdOpened={handleIsIdOpened}
+                        <FolderStructure newItemType={newItemType} setNewItemType={setNewItemType} data={item.children} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} addItemToData={addItemToData} depth={depth + 1} isIdOpened={isIdOpened} handleIsIdOpened={handleIsIdOpened}
                         openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId} expandedIds={expandedIds} handleExpandedIds={handleExpandedIds}
                         itemLookup={itemLookup}/>
                         : null}
