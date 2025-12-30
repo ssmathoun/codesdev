@@ -8,14 +8,14 @@ import Modal from "../components/Modal";
 const dirData: folderStructureData[] = [
     { id: 1, name: 'index.tsx', type: 'file', content: 'index.tsx'},
     { id: 2, name: 'App.tsx', type: 'file', content: 'App.tsx'},
-    { id: 3, name: 'components', type: 'folder', parent: null, children: [
+    { id: 3, name: 'components', type: 'folder', children: [
         { id: 4, name: 'headerFolder', type: 'folder', parent: 3, children: [
             { id: 9, name: 'Header.tsx', type: 'file', parent: 4,  content: 'Header.tsx'},
             { id: 10, name: 'Logo.tsx', type: 'file', parent: 4, content: 'Logo.tsx'},
         ] },
         { id: 5, name: 'Footer.tsx', type: 'file', parent: 3, content: 'Footer.tsx'},
     ]},
-    { id: 6, name: 'styles', type: 'folder', parent: null, children: [
+    { id: 6, name: 'styles', type: 'folder', children: [
         { id: 7, name: 'main.css', type: 'file', parent: 6, content: 'main.css' },
         { id: 8, name: 'theme.css', type: 'file', parent: 6, content: 'theme.css' },
     ]},
@@ -87,8 +87,8 @@ export default function MainLayout() {
         }
     };
     const [openedFileTabsId, setOpenedFileTabsId] = useState<number[]>(openedId !== null ? [openedId] : []);
-    const handleOpenedFileTabsId = (id: number, toggle: boolean = false) => {
-        if (toggle) {
+    const handleOpenedFileTabsId = (id: number, remove: boolean = false) => {
+        if (remove) {
             setOpenedFileTabsId(prev => {
                 const nextTabs = prev.filter(currentId => currentId !== id);
                 if (nextTabs.length === 0) {
@@ -182,8 +182,6 @@ export default function MainLayout() {
         const itemToDelete = itemLookup.get(deleteItemId);
         if (!itemToDelete) return;
 
-        const newOpenedId = data[0].id;
-        setOpenedId(newOpenedId)
         deleteItemFromData(itemToDelete);
         setDeleteItemId(null);
         setIsDeleteModalOpen(false);
@@ -191,6 +189,25 @@ export default function MainLayout() {
         if (itemToDelete.type === "file") {
             handleOpenedFileTabsId(deleteItemId, true);
         }
+        else {
+            const collectFileIds = (item: folderStructureData): number[] => {
+                let fileIds: number[] = [];
+                if (item.type === "file") {
+                    fileIds.push(item.id);
+                }
+                else if (item.children) {
+                    item.children.forEach(child => {
+                        fileIds = fileIds.concat(collectFileIds(child));
+                    })
+                }
+                return fileIds;
+            }
+
+            const fileIdsToClose = collectFileIds(itemToDelete);
+            setOpenedFileTabsId(prev => prev.filter(id => !fileIdsToClose.includes(id)));
+        }
+        setExpandedIds(prev => prev.filter(id => id !== deleteItemId));
+        setOpenedId(null);
     };
 
     const cancelDelete = () => {
