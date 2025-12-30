@@ -31,10 +31,12 @@ export default function CodeEditor({data, updateFileContent, addItemToData, open
 
   return (
     <>
+      {openedId !== null ? (
       <FileTabs data={data} openedId={openedId} handleOpenedId={handleOpenedId}
       openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
       expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
-      
+      ) : null}
+
       {openedId !== null ? (
       <Editor 
         height="100vh"
