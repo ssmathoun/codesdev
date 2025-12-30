@@ -2,10 +2,10 @@ import type { folderStructureData } from "../types/types";
 import FolderStructure from "./FolderStructure";
 import  {FolderPlus, FilePlus}from "lucide-react";
 
-export default function FileSidebar({data, pendingParentId, setPendingParentId, newItemType, setNewItemType, addItemToData, isModalOpen, setIsModalOpen, width, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: { data: folderStructureData[], pendingParentId: number | null, setPendingParentId: (prev: number | null) => void, newItemType: "file" | "folder" | null, setNewItemType: (prev: "file" | "folder") => void, isModalOpen: boolean, setIsModalOpen: (prev: boolean) => void, addItemToData: (item: folderStructureData) => void, width: string, openedId: number | null, handleOpenedId: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
+export default function FileSidebar({data, pendingParentId, setPendingParentId, newItemType, setNewItemType, addItemToData, deleteItemId, setDeleteItemId, isAddModalOpen, setIsAddModalOpen, isDeleteModalOpen, setIsDeleteModalOpen,  width, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: { data: folderStructureData[], pendingParentId: number | null, setPendingParentId: (prev: number | null) => void, newItemType: "file" | "folder" | null, setNewItemType: (prev: "file" | "folder") => void, setIsDeleteModalOpen: (prev: boolean) => void, setDeleteItemId: (prev: number | null) => void, isAddModalOpen: boolean, setIsAddModalOpen: (prev: boolean) => void, isDeleteModalOpen: boolean, deleteItemId: number | null, addItemToData: (item: folderStructureData) => void, width: string, openedId: number | null, handleOpenedId: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
     function addItem(e: React.MouseEvent, itemType: "file" | "folder") {
         e.stopPropagation();
-        setIsModalOpen(true);
+        setIsAddModalOpen(true);
         setNewItemType(itemType);
         setPendingParentId(null);
     }
@@ -25,9 +25,10 @@ export default function FileSidebar({data, pendingParentId, setPendingParentId, 
                         <FolderPlus onClick= {(e) => addItem(e, "folder")} size={18} className="text-zinc-500 hover:text-white"/>
                     </button>
                 </div>
-                <FolderStructure data={data} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} addItemToData={addItemToData} isIdOpened={openedId} handleIsIdOpened={handleOpenedId}
+                <FolderStructure data={data} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} isIdOpened={openedId} handleIsIdOpened={handleOpenedId}
                 openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-                expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
+                expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}
+                setDeleteItemId={setDeleteItemId}/>
             </aside>
         </div>
     )

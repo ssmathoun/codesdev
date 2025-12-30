@@ -48,6 +48,20 @@ export default function MainLayout() {
         }
     };
 
+    const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
+
+    const deleteItemFromData = (itemToDelete: folderStructureData) : void => {
+        const deleteItemRecursively = (items: folderStructureData[]): folderStructureData[] => {
+            return items.filter(item => item.id !== itemToDelete.id).map(item => {
+                if (item.children) {
+                    return { ...item, children: deleteItemRecursively(item.children) };
+                }
+                return item;
+            });
+        }
+        setData(prevData => deleteItemRecursively(prevData));
+    };
+
     const updateFileContent = (id: number, newContent: string) : void => {
         const updateContentRecursively = (items: folderStructureData[]): folderStructureData[] => {
             return items.map(item => {
@@ -118,7 +132,8 @@ export default function MainLayout() {
         }
     }
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [newItemName, setNewItemName] = useState("");
     const [newItemType, setNewItemType] = useState(null as "file" | "folder" | null);
 
@@ -159,9 +174,28 @@ export default function MainLayout() {
         setNewItemType(null);
         setOpenedId(newItemId);
         setNewItemName("");
-        setIsModalOpen(false);
+        setIsAddModalOpen(false);
         setPendingParentId(null);
-    }
+    };
+
+    const deleteItem = (deleteItemId: number) => {
+        const itemToDelete = itemLookup.get(deleteItemId);
+        if (!itemToDelete) return;
+
+        const newOpenedId = data[0].id;
+        setOpenedId(newOpenedId)
+        deleteItemFromData(itemToDelete);
+        setDeleteItemId(null);
+        setIsDeleteModalOpen(false);
+
+        if (itemToDelete.type === "file") {
+            handleOpenedFileTabsId(deleteItemId, true);
+        }
+    };
+
+    const cancelDelete = () => {
+        setIsDeleteModalOpen(false);
+    };
 
     const [pendingParentId, setPendingParentId] = useState<number | null>(null);
 
@@ -187,8 +221,8 @@ export default function MainLayout() {
     return (
         <>
             <Modal
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)}
+                isOpen={isAddModalOpen} 
+                onClose={() => setIsAddModalOpen(false)}
                 title={ `Create New ${newItemType}` }
             >
                 <form 
@@ -210,7 +244,7 @@ export default function MainLayout() {
                         <button
                             type="button"
                             className="text-zinc-400 hover:text-white px-3"
-                            onClick={() => setIsModalOpen(false)}
+                            onClick={() => setIsAddModalOpen(false)}
                         >
                             Cancel
                         </button>
@@ -224,15 +258,46 @@ export default function MainLayout() {
                       
             </Modal>
 
+            <Modal
+                isOpen={isDeleteModalOpen} 
+                onClose={() => setIsDeleteModalOpen(false)}
+                title={ `Are you sure you want to delete ${deleteItemId !== null ? itemLookup.get(deleteItemId)?.name : ""}?` }
+            >
+                <form 
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        deleteItem(deleteItemId!);
+                    }}
+                    className="flex flex-col gap-4">
+
+                    <div className="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            className="text-zinc-400 hover:text-white px-3"
+                            onClick={cancelDelete}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="bg-[#DC26268e] hover:bg-[#DC2626] text-white px-4 py-2 rounded"
+                        >
+                            Delete
+                        </button>
+                    </div>
+                </form>
+                      
+            </Modal>
+
             <div className="grid grid-rows-[48px_1fr] h-screen w-full">
 
                 {/* Top Navbar */}
                 <nav className="flex bg-[#DC2626] text-white"></nav>
 
                 <div className="h-full flex">
-                    <FileSidebar data={data} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isModalOpen={isModalOpen} setIsModalOpen={setIsModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
+                    <FileSidebar data={data} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-                                    expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
+                                    expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}/>
 
                     {/* Resize Gutter */}
                     <div className="w-1 h-screen bg-[#1e1e1e] active:bg-blue-500 cursor-col-resize"

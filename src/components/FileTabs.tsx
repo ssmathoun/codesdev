@@ -47,7 +47,7 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], ope
         <span key={itemId} onClick={() => handleClick(itemId)} className="flex items-center justify-between w-35 h-9 px-3 border border-[#2E2E2E] hover:bg-[#1e1e1e] select-none cursor-default"
         style={(itemId === openedId) ? {backgroundColor: "#1E1E1E"} : {}}>
         {item?.name}
-        <X size={12} onClick={(e) => {e.stopPropagation();toggleTab(itemId, true)}} className="ml-2 hover:text-red-500"/>
+        <X size={12} onClick={(e) => {e.stopPropagation();toggleTab(itemId, true)}} className="ml-2 hover:text-[#DC2626]"/>
         </span>
         )})}
     </div>
