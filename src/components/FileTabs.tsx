@@ -45,23 +45,28 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], ope
             {openedFileTabsId.map(itemId => {
                 const item = itemLookup.get(itemId);
                 return (
-                <span key={itemId} onClick={() => handleClick(itemId)} className="flex items-center justify-between w-35 h-9 px-3 border border-[#2E2E2E] hover:bg-[#1e1e1e] select-none cursor-default"
+                <span key={itemId} onClick={() => handleClick(itemId)} className="flex items-center justify-between min-w-32 max-w-52 whitespace-nowrap h-9 px-3 border border-[#2E2E2E] hover:bg-[#1e1e1e] select-none cursor-default"
                 style={(itemId === openedId) ? {backgroundColor: "#1E1E1E"} : {}}>
-                {item?.name}
-                <X size={12} onClick={(e) => {e.stopPropagation();toggleTab(itemId, true)}} className="ml-2 hover:text-[#DC2626]"/>
+                <span className="truncate">
+                    {item?.name}
+                </span>
+                <X size={12} onClick={(e) => {e.stopPropagation();toggleTab(itemId, true)}} className="ml-2 shrink-0 hover:text-[#DC2626]"/>
                 </span>
                 )})}
             </div>
 
-            <div className="flex h-4 bg-[#1E1E1E] text-zinc-400 items-center text-[14px] px-3 py-3">
+            <div className="flex h-4 bg-[#1E1E1E] text-zinc-400 items-center text-[14px] px-3 py-3 whitespace-nowrap">
             <span className="select-none cursor-default">project name</span>
-            {getPath(openedId ?? -1).length > 0 ? <ChevronRight size={20} strokeWidth={1} className="inline "/> : null}
+            {getPath(openedId ?? -1).length > 0 ? <ChevronRight size={20} strokeWidth={1} className="inline shrink-0"/> : null}
             
                 {getPath(openedId ?? -1).map((id, index, array) => {
                     return (
-                        <span key={id} className="flex items-center select-none cursor-default">
+                        <span key={id} className="flex items-center select-none cursor-default max-w-52">
+                            <span className="truncate">
                             {itemLookup.get(id)?.name}
-                            {index < array.length - 1 ? <ChevronRight size={20} strokeWidth={1} className="inline "/> : null}
+                            </span>
+                            
+                            {index < array.length - 1 ? <ChevronRight size={20} strokeWidth={1} className="inline shrink-0"/> : null}
                         </span>
                     )
                 })}

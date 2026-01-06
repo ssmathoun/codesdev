@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import debounce from "lodash.debounce";
 import CodeEditor from "../components/CodeEditor"
 import FileSidebar from "../components/FileSidebar"
+import ContextMenu from "../components/ContextMenu";
 import type { folderStructureData } from "../types/types";
 import Modal from "../components/Modal";
 
@@ -134,6 +135,7 @@ export default function MainLayout() {
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
     const [newItemName, setNewItemName] = useState("");
     const [newItemType, setNewItemType] = useState(null as "file" | "folder" | null);
 
@@ -176,6 +178,33 @@ export default function MainLayout() {
         setNewItemName("");
         setIsAddModalOpen(false);
         setPendingParentId(null);
+    };
+
+    const renameItem = (itemName: string) => {
+        const trimmedName = itemName.trim();
+        if (trimmedName === "" || newItemType === null) {
+            return;
+        }
+
+        const renameRecursively = (items: folderStructureData[]): folderStructureData[] => {
+            return items.map(item => {
+                if (item.id === deleteItemId) {
+                    return { ...item, name: itemName };
+                }
+                else {
+                    if (item.children) {
+                        return { ...item, children: renameRecursively(item.children) };
+                    }
+                    return item;
+                }
+            });
+
+        };
+
+        setData(prevData => renameRecursively(prevData));
+        setNewItemType(null);
+        setNewItemName("");
+        setIsRenameModalOpen(false);
     };
 
     const deleteItem = (deleteItemId: number) => {
@@ -235,11 +264,59 @@ export default function MainLayout() {
 
     };
 
+    const [menuPos, setMenuPos] = useState<{x: number, y: number} | null>(null);
+
+    const handleContextMenu = (e: React.MouseEvent, item: folderStructureData) => {
+        e.stopPropagation();
+        const rect = e.currentTarget.getBoundingClientRect();
+
+        const menuHeight = 150;
+        const menuWidth = 140;
+
+        let y = rect.bottom + 5;
+        let x = rect.left;
+
+        if (rect.bottom + menuHeight > window.innerHeight) {
+            y = rect.top - menuHeight - 5;
+        }
+        if (rect.left + menuWidth > window.innerWidth) {
+            x = rect.left - menuWidth;
+        }
+
+        setMenuPos({ x, y });
+        setPendingParentId(item.type === "folder" ? item.id : null);
+        setDeleteItemId(item.id);
+    };
+
+    function addItemModal(itemType: "file" | "folder") {
+        setIsAddModalOpen(true);
+        setNewItemType(itemType);
+        
+    }
+
+    function deleteItemModal() {
+        setIsDeleteModalOpen(true);
+    }
+
+    function renameItemModal() {
+        const itemToRename = itemLookup.get(deleteItemId!);
+        if (itemToRename) {
+            setNewItemName(itemToRename.name);
+            setNewItemType(itemToRename.type);
+            setIsRenameModalOpen(true);
+        }
+    }
+
     return (
         <>
+            {menuPos !== null ?
+            <ContextMenu x={menuPos.x} y={menuPos.y} selectType={pendingParentId ? "folder" : "file"} onClose={() => setMenuPos(null)} onNewFile={() => addItemModal("file")}
+                            onNewFolder={() => addItemModal("folder")} onDelete={deleteItemModal} onRename={renameItemModal}/>
+            : null}
+
             <Modal
                 isOpen={isAddModalOpen} 
-                onClose={() => setIsAddModalOpen(false)}
+                onClose={() => {setIsAddModalOpen(false); setNewItemName("")}}
                 title={ `Create New ${newItemType}` }
             >
                 <form 
@@ -261,7 +338,7 @@ export default function MainLayout() {
                         <button
                             type="button"
                             className="text-zinc-400 hover:text-white px-3"
-                            onClick={() => setIsAddModalOpen(false)}
+                            onClick={() => {setIsAddModalOpen(false); setNewItemName("")}}
                         >
                             Cancel
                         </button>
@@ -269,6 +346,44 @@ export default function MainLayout() {
                             type="submit"
                             className="bg-[#DC26268e] hover:bg-[#DC2626] text-white px-4 py-2 rounded">
                             Create
+                        </button>
+                    </div>
+                </form>
+                      
+            </Modal>
+            
+            <Modal
+                isOpen={isRenameModalOpen} 
+                onClose={() => setIsRenameModalOpen(false)}
+                title={ `Rename ${newItemType}` }
+            >
+                <form 
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        renameItem(newItemName);
+                    }}
+                    className="flex flex-col gap-4">
+
+                    <input
+                        autoFocus
+                        type="text"
+                        className="bg-[#2A2A2A] border border-zinc-600 p-2 rounded text-white outline-none focus:border-[#DC2626]"
+                        placeholder={newItemName !== null ? newItemName : ""}
+                        value={newItemName}
+                        onChange={(e) => setNewItemName(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <button
+                            type="button"
+                            className="text-zinc-400 hover:text-white px-3"
+                            onClick={() => {setIsRenameModalOpen(false); setNewItemName("")}}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="bg-[#DC26268e] hover:bg-[#DC2626] text-white px-4 py-2 rounded">
+                            Rename
                         </button>
                     </div>
                 </form>
@@ -312,7 +427,7 @@ export default function MainLayout() {
                 <nav className="flex bg-[#DC2626] text-white"></nav>
 
                 <div className="h-full flex">
-                    <FileSidebar data={data} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
+                    <FileSidebar data={data} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                                     expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}/>
 

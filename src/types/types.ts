@@ -13,3 +13,14 @@ export interface ModalProps {
     title: string;
     children: React.ReactNode;
 }
+
+export interface ContextMenuProps {
+    x: number;
+    y: number;
+    selectType: 'file' | 'folder';
+    onClose: () => void;
+    onNewFile: () => void;
+    onNewFolder: () => void;
+    onDelete: () => void;
+    onRename: () => void;
+}
