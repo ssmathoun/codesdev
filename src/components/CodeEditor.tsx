@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import type { folderStructureData } from "../types/types";
 import FileTabs from './FileTabs';
 
-export default function CodeEditor({data, updateFileContent, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], updateFileContent: (id: number, newContent: string) => void, addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
+export default function CodeEditor({data, isSaving, setIsSaving, updateFileContent, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], updateFileContent: (id: number, newContent: string) => void, addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>, isSaving: boolean, setIsSaving: (prev: boolean) => void}) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // Stores current editor content
 
   /*
@@ -21,6 +21,7 @@ export default function CodeEditor({data, updateFileContent, addItemToData, open
   */
   function handleEditorChange(value: string | undefined) {
     if (openedId !== null && typeof(value) === "string") {
+      setIsSaving(true);
       updateFileContent(openedId, value);
     }
   }
@@ -39,7 +40,7 @@ export default function CodeEditor({data, updateFileContent, addItemToData, open
 
       {openedId !== null ? (
       <Editor 
-        height="100vh"
+        height="100%"
         theme="vs-dark" 
         defaultLanguage="javascript" 
         value={itemLookup.get(openedId)?.content}

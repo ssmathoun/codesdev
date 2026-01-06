@@ -5,6 +5,7 @@ import FileSidebar from "../components/FileSidebar"
 import ContextMenu from "../components/ContextMenu";
 import type { folderStructureData } from "../types/types";
 import Modal from "../components/Modal";
+import Navbar from "../components/Navbar";
 
 const dirData: folderStructureData[] = [
     { id: 1, name: 'index.tsx', type: 'file', content: 'index.tsx'},
@@ -63,6 +64,8 @@ export default function MainLayout() {
         setData(prevData => deleteItemRecursively(prevData));
     };
 
+    const [isSaving, setIsSaving] = useState(false);
+
     const updateFileContent = (id: number, newContent: string) : void => {
         const updateContentRecursively = (items: folderStructureData[]): folderStructureData[] => {
             return items.map(item => {
@@ -78,6 +81,7 @@ export default function MainLayout() {
             })
         }
         setData(prevData => updateContentRecursively(prevData) );
+        setIsSaving(false);
     }
     
     const [sidebarWidth, setSidebarWidth] = useState("15"); // Tracks FileSidebar Width
@@ -142,8 +146,8 @@ export default function MainLayout() {
     const debouncedUpdate = useCallback(
         debounce((id: number, content: string) => {
             updateFileContent(id, content);
-        }, 500),
-        [data]
+        }, 1000),
+        []
     );
 
     useEffect(() => {
@@ -424,8 +428,7 @@ export default function MainLayout() {
             <div className="grid grid-rows-[48px_1fr] h-screen w-full">
 
                 {/* Top Navbar */}
-                <nav className="flex bg-[#DC2626] text-white"></nav>
-
+                <Navbar isSaving={isSaving}/>
                 <div className="h-full flex">
                     <FileSidebar data={data} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
@@ -436,7 +439,7 @@ export default function MainLayout() {
                             onMouseDown={handleMouseDown}></div>
 
                     <div className="flex-1">
-                        <CodeEditor data={data} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                        <CodeEditor data={data} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                         openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                         expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                     </div>

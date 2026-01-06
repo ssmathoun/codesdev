@@ -39,7 +39,7 @@ export default function FolderStructure({ data, menuPos, handleContextMenu, pend
                 {item.type === "file" ? 
                 
                     <div onContextMenu={(e) => handleContextMenu(e, item)} onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 34}px`}} className={(item.id === isIdOpened) ? "bg-[#dc26268e] whitespace-nowrap flex gap-1 items-center group justify-between" : "flex gap-1 whitespace-nowrap hover:bg-[#2E2E2E] items-center group justify-between"}>
-                        <span className="truncate">
+                        <span className="mr-2 truncate">
                             {item.name}
                         </span>
                         
@@ -50,7 +50,7 @@ export default function FolderStructure({ data, menuPos, handleContextMenu, pend
                     <>
                         <div onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 12}px`}} className={(item.id === isIdOpened) ? "group bg-[#DC26268e] flex gap-1 whitespace-nowrap items-center" : "group flex gap-1 hover:bg-[#2e2e2e] items-center whitespace-nowrap"}>
                             {isOpen ? <ChevronDown size={18} className="shrink-0"/> : <ChevronRight size={18} className="shrink-0"/>}
-                            <span className="truncate">
+                            <span className="mr-2 truncate">
                                 {item.name}
                             </span>
                             <Ellipsis onClick= {(e) => handleContextMenu(e, item)} size={16} className="hidden text-zinc-500 hover:text-white group-hover:flex mr-2 ml-auto shrink-0"/>
