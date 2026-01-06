@@ -255,7 +255,10 @@ export default function MainLayout() {
     const handleMouseDown = () => {
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const newWidth = (moveEvent.clientX / window.innerWidth) * 100;
-            setSidebarWidth(newWidth.toString())
+
+            if (newWidth >= 10 && newWidth <= 40) {
+                setSidebarWidth(newWidth.toString());
+            }
         };
 
         const handleMouseUp = () => {
@@ -425,20 +428,24 @@ export default function MainLayout() {
                       
             </Modal>
 
-            <div className="grid grid-rows-[48px_1fr] h-screen w-full">
+            <div className="grid grid-rows-[48px_1fr] h-screen w-full overflow-hidden">
 
                 {/* Top Navbar */}
                 <Navbar isSaving={isSaving}/>
-                <div className="h-full flex">
+
+                <div className="h-full w-full flex overflow-hidden">
                     <FileSidebar data={data} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                                     expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}/>
 
                     {/* Resize Gutter */}
-                    <div className="w-1 h-screen bg-[#1e1e1e] active:bg-blue-500 cursor-col-resize"
-                            onMouseDown={handleMouseDown}></div>
+                    <div className="relative w-1 h-full bg-[#1e1e1e] hover:bg-[#DC26268E] active:bg-[#DC2626] cursor-col-resize transition-colors shrink-0 group"
+                            onMouseDown={handleMouseDown}>
 
-                    <div className="flex-1">
+                        <div className="absolute inset-y-0 -left-1 -right-1 cursol-col-resize z-10"/>
+                    </div>
+                    
+                    <div className="flex-1 h-full overflow-hidden">
                         <CodeEditor data={data} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                         openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                         expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>

@@ -3,10 +3,31 @@
 
 @theme {
     --font-sans: "Inter", sans-serif;
+    --color-ide-bg: #130505;
+    --color-ide-accent: #DC2626;
+    --color-ide-border: #2E2E2E;
+    --color-scrollbar-thumb: #2E2E2E;
+    --color-scrollbar-hover: #404040;
 }
 
-body {
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+@layer base {
+    html, body {
+      @apply overscroll-none h-screen w-screen overflow-hidden antialiased;
+      font-family: var(--font-sans);
+      background-color: var(--color-ide-bg);
+    }
+  
+    #root {
+      @apply h-full;
+    }
 }
+
+@layer utilities {
+    .scrollbar-none {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
+  }

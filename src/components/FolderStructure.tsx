@@ -1,7 +1,5 @@
-import { ChevronDown, ChevronRight, FolderPlus, FilePlus, Trash, Ellipsis } from "lucide-react";
+import { ChevronDown, ChevronRight, Ellipsis } from "lucide-react";
 import type { folderStructureData } from "../types/types";
-import ContextMenu from "./ContextMenu";
-import { useState } from "react";
 
 export default function FolderStructure({ data, menuPos, handleContextMenu, pendingParentId, setPendingParentId, newItemType, setNewItemType, deleteItemId, setDeleteItemId, isAddModalOpen, setIsAddModalOpen, isDeleteModalOpen, setIsDeleteModalOpen, addItemToData, depth = 0, isIdOpened, handleIsIdOpened, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: { data: folderStructureData[], menuPos: {x: number, y: number} | null, handleContextMenu: (e: React.MouseEvent, item: folderStructureData) => void, pendingParentId: number | null, setPendingParentId: (prev: number | null) => void, newItemType: "file" | "folder" | null, setDeleteItemId: (prev: number | null) => void, setNewItemType: (prev: "file" | "folder") => void, addItemToData: (item: folderStructureData) => void, depth?: number, isIdOpened: number | null, handleIsIdOpened: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>
     deleteItemId: number | null, isAddModalOpen: boolean, setIsAddModalOpen: (prev: boolean) => void, isDeleteModalOpen: boolean, setIsDeleteModalOpen: (prev: boolean) => void,
@@ -14,19 +12,6 @@ export default function FolderStructure({ data, menuPos, handleContextMenu, pend
         if (item.type === "file") {
             handleOpenedFileTabsId(item.id);
         }
-    }
-
-    function addItem(e: React.MouseEvent, itemType: "file" | "folder", parentId: number) {
-        e.stopPropagation();
-        setIsAddModalOpen(true);
-        setNewItemType(itemType);
-        setPendingParentId(parentId);
-    }
-
-    function deleteItem(e: React.MouseEvent, itemId: number) {
-        e.stopPropagation();
-        setDeleteItemId(itemId);
-        setIsDeleteModalOpen(true);
     }
 
     return (
