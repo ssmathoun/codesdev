@@ -23,7 +23,7 @@ export default function FolderStructure({ data, menuPos, handleContextMenu, pend
             <li key={item.id}>
                 {item.type === "file" ? 
                 
-                    <div onContextMenu={(e) => handleContextMenu(e, item)} onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 34}px`}} className={(item.id === isIdOpened) ? "bg-[#dc26268e] whitespace-nowrap flex gap-1 items-center group justify-between" : "flex gap-1 whitespace-nowrap hover:bg-[#2E2E2E] items-center group justify-between"}>
+                    <div onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 34}px`}} className={(item.id === isIdOpened) ? "bg-[#dc26268e] whitespace-nowrap flex gap-1 items-center group justify-between" : "flex gap-1 whitespace-nowrap hover:bg-[#2E2E2E] items-center group justify-between"}>
                         <span className="mr-2 truncate">
                             {item.name}
                         </span>

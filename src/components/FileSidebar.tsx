@@ -83,7 +83,7 @@ export default function FileSidebar({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-behavior-contain scrollbar-none">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-behavior-contain custom-scrollbar">
                 <FolderStructure
                     data={data}
                     menuPos={menuPos}

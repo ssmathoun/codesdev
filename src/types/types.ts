@@ -24,3 +24,10 @@ export interface ContextMenuProps {
     onDelete: () => void;
     onRename: () => void;
 }
+
+export interface OutputConsoleProps {
+    logs: string[];
+    onClear: () => void;
+    onClose: () => void;
+    height: number;
+}

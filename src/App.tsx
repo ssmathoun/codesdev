@@ -12,7 +12,7 @@ function App() {
 
     },
     {
-      path: "/editor/:id",
+      path: "/editor/:projectId",
       element: <MainLayout />
     }
   ]);

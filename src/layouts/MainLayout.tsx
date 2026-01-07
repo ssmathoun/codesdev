@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import debounce from "lodash.debounce";
-import CodeEditor from "../components/CodeEditor"
-import FileSidebar from "../components/FileSidebar"
+import CodeEditor from "../components/CodeEditor";
+import FileSidebar from "../components/FileSidebar";
 import ContextMenu from "../components/ContextMenu";
 import type { folderStructureData } from "../types/types";
 import Modal from "../components/Modal";
 import Navbar from "../components/Navbar";
+import OutputConsole from "../components/OutputConsole"
 
 const dirData: folderStructureData[] = [
     { id: 1, name: 'index.tsx', type: 'file', content: 'index.tsx'},
@@ -24,6 +26,7 @@ const dirData: folderStructureData[] = [
 ]
 
 export default function MainLayout() {
+    const { projectId } = useParams();
     const [data, setData] = useState<folderStructureData[]>(dirData);
     const addItemToData = (newItem: folderStructureData) : void => {
         const parentId = newItem.parent ?? null;
@@ -191,6 +194,10 @@ export default function MainLayout() {
             setExpandedIds(prev => prev.includes(pendingParentId!) ? prev : [...prev, pendingParentId!]);
         }
 
+        if (newItemType === "file") {
+            handleOpenedFileTabsId(newItemId);
+        }
+
         setNewItemType(null);
         setOpenedId(newItemId);
         setNewItemName("");
@@ -350,6 +357,32 @@ export default function MainLayout() {
         }
     };
 
+    const [consoleHeight, setConsoleHeight] = useState(150);
+    const [isConsoleOpen, setIsConsoleOpen] = useState(true);
+    const [logs, setLogs] = useState<string[]>(["Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!", "Project initialized...", "Welcome to the editor!"]);
+
+     /*
+    Function to resize the sidebar on mouse down event.
+    */
+    const handleConsoleResize = (e: React.MouseEvent) => {
+        const startHeight = consoleHeight;
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const delta = e.clientY - moveEvent.clientY
+            const newHeight = Math.min(Math.max(startHeight + delta, 40), 500);
+            setConsoleHeight(newHeight);
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        }
+
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+
+    };
+
     return (
         <>
             {menuPos !== null ?
@@ -496,20 +529,41 @@ export default function MainLayout() {
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                                     expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}/>
 
-                    {/* Resize Gutter */}
+                    {/* Sidebar Resize Gutter */}
                     <div className="relative w-1 h-full bg-[#1e1e1e] hover:bg-[#DC26268E] active:bg-ide-accent cursor-col-resize transition-colors shrink-0 group"
                             onMouseDown={handleMouseDown}>
 
                         <div className="absolute inset-y-0 -left-1 -right-1 cursol-col-resize z-10"/>
                     </div>
                     
-                    <div className="flex-1 h-full overflow-hidden">
-                        <CodeEditor data={data} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
-                        openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-                        expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
+                    <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+
+                        {/* Editor Section */}
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                            <CodeEditor data={data} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
+                            expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
+                        </div>
+
+                        {/* Console Section */}
+                        {isConsoleOpen && (
+                            <div className="flex flex-col shrink-0">
+                                {/* Console Resize Gutter */}
+                                <div
+                                    onMouseDown={handleConsoleResize}
+                                    className="h-1 w-full bg-[#1E1E1E] hover:bg-[#DC26268E] active:bg-ide-accent cursor-row-resize transitoon-colors z-20"
+                                />
+                                    <OutputConsole 
+                                        logs={logs}
+                                        height={consoleHeight}
+                                        onClear={() => setLogs([])}
+                                        onClose={() => setIsConsoleOpen(false)}
+                                    />
+                            </div>
+                        )}  
                     </div>
 
-                </div>
+                </div> 
             </div>
             
         </>
