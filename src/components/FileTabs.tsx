@@ -6,6 +6,7 @@ export default function FileTabs({data, openedId, handleOpenedId, openedFileTabs
 expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], openedId: number | null, handleOpenedId: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void , expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
 
     const tabRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+    const breadcrumbRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (openedId !== null) {
@@ -16,6 +17,10 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], ope
                     inline: "center"
                 });
             }
+        }
+
+        if (openedId && breadcrumbRef.current) {
+            breadcrumbRef.current.scrollLeft = breadcrumbRef.current.scrollWidth;
         }
     }, [openedId]);
     
@@ -78,8 +83,9 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], ope
                 </div>
                 )})}
             </div>
-
-            <div className="flex h-4 bg-[#1E1E1E] text-zinc-400 items-center text-[14px] px-3 py-3 whitespace-nowrap">
+            
+            {/* Breadcrumbs */}
+            <div ref={breadcrumbRef} className="flex h-4 bg-[#1E1E1E] text-zinc-400 items-center text-[14px] px-3 py-3 whitespace-nowrap overflow-x-auto overflow-y-hidden flex-nowrap scrollbar-none select-none">
             <span className="select-none cursor-default">project name</span>
             {getPath(openedId ?? -1).length > 0 ? <ChevronRight size={20} strokeWidth={1} className="inline shrink-0"/> : null}
             
