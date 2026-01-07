@@ -156,12 +156,26 @@ export default function MainLayout() {
         };
     }, [debouncedUpdate]);
 
+    const isNameDuplicate = (name: string, parentId: number | null, excludeId?: number): boolean => {
+        const siblings = parentId
+            ? itemLookup.get(parentId)?.children || []
+            : data;
+        
+        return siblings.some(item =>
+            item.name.toLowerCase() === name.trim().toLowerCase() &&
+            item.id !== excludeId
+        );
+    };
+
+    const [modalError, setModalError] = useState("");
+
     const addNewItem = (itemName: string) => {
         const trimmedName = itemName.trim();
-        if (trimmedName === "" || newItemType === null) {
-            return;
-        }
+        if (trimmedName === "" || newItemType === null) return;
 
+        if (isNameDuplicate(trimmedName, pendingParentId)) {
+            //Add
+        }
         const newItemId = Date.now();
 
         addItemToData({
@@ -186,9 +200,15 @@ export default function MainLayout() {
 
     const renameItem = (itemName: string) => {
         const trimmedName = itemName.trim();
-        if (trimmedName === "" || newItemType === null) {
-            return;
+        if (trimmedName === "" || newItemType === null) return;
+
+        const itemToRename = itemLookup.get(deleteItemId!);
+        const parentId = itemToRename?.parent ?? null;
+
+        if (isNameDuplicate(trimmedName, parentId, deleteItemId!)) {
+            //Add
         }
+
 
         const renameRecursively = (items: folderStructureData[]): folderStructureData[] => {
             return items.map(item => {
@@ -314,6 +334,22 @@ export default function MainLayout() {
         }
     }
 
+    const handleNameChange = (name: string) => {
+        setNewItemName(name);
+
+        const parentId = isRenameModalOpen 
+            ? (itemLookup.get(deleteItemId!)?.parent ?? null)
+            : pendingParentId;
+        
+        const isDuplicate = isNameDuplicate(name, parentId, isRenameModalOpen ? deleteItemId! : undefined);
+
+        if (isDuplicate) {
+            setModalError("A file or folder with this name already exists. Please choose a different name.");
+        } else {
+            setModalError("");
+        }
+    };
+
     return (
         <>
             {menuPos !== null ?
@@ -323,7 +359,7 @@ export default function MainLayout() {
 
             <Modal
                 isOpen={isAddModalOpen} 
-                onClose={() => {setIsAddModalOpen(false); setNewItemName("")}}
+                onClose={() => {setModalError(""); setIsAddModalOpen(false); setNewItemName("")}}
                 title={ `Create New ${newItemType}` }
             >
                 <form 
@@ -336,11 +372,17 @@ export default function MainLayout() {
                     <input
                         autoFocus
                         type="text"
-                        className="bg-[#2A2A2A] border border-zinc-600 p-2 rounded text-white outline-none focus:border-[#DC2626]"
+                        className={`bg-[#2A2A2A] border border-zinc-600 p-2 rounded text-white outline-none focus:border-ide-accent ${modalError ? "border-red-500 focus:border-red-500" : "border-zinc-600"}`}
                         placeholder={newItemType === "file" ? "Eg: main.ts" : "Eg: src"}
                         value={newItemName}
-                        onChange={(e) => setNewItemName(e.target.value)}
+                        onChange={(e) => handleNameChange(e.target.value)}
                     />
+
+                    {/*  Real-time Error Message */}
+                    {modalError && (
+                        <span className="text-red-500 text-xs font-medium">{modalError}</span>
+                    )}
+
                     <div className="flex justify-end gap-2">
                         <button
                             type="button"
@@ -351,7 +393,12 @@ export default function MainLayout() {
                         </button>
                         <button
                             type="submit"
-                            className="bg-[#DC26268e] hover:bg-[#DC2626] text-white px-4 py-2 rounded">
+                            disabled={!!modalError || !newItemName.trim()}
+                            className={`px-4 py-2 rounded transition-all
+                                ${(!!modalError || !newItemName.trim())
+                                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50"
+                                    : "bg-ide-accent hover:bg-red-700 text-white cursor-pointer"
+                                }`}>
                             Create
                         </button>
                     </div>
@@ -361,7 +408,7 @@ export default function MainLayout() {
             
             <Modal
                 isOpen={isRenameModalOpen} 
-                onClose={() => setIsRenameModalOpen(false)}
+                onClose={() => {setModalError(""); setIsRenameModalOpen(false); setNewItemName("")}}
                 title={ `Rename ${newItemType}` }
             >
                 <form 
@@ -374,11 +421,17 @@ export default function MainLayout() {
                     <input
                         autoFocus
                         type="text"
-                        className="bg-[#2A2A2A] border border-zinc-600 p-2 rounded text-white outline-none focus:border-[#DC2626]"
-                        placeholder={newItemName !== null ? newItemName : ""}
+                        className={`bg-[#2A2A2A] border border-zinc-600 p-2 rounded text-white outline-none focus:border-ide-accent ${modalError ? "border-red-500 focus:border-red-500" : "border-zinc-600"}`}
+                        placeholder={newItemType === "file" ? "Eg: main.ts" : "Eg: src"}
                         value={newItemName}
-                        onChange={(e) => setNewItemName(e.target.value)}
+                        onChange={(e) => handleNameChange(e.target.value)}
                     />
+
+                    {/*  Real-time Error Message */}
+                    {modalError && (
+                        <span className="text-red-500 text-xs font-medium">{modalError}</span>
+                    )}
+
                     <div className="flex justify-end gap-2">
                         <button
                             type="button"
@@ -389,7 +442,12 @@ export default function MainLayout() {
                         </button>
                         <button
                             type="submit"
-                            className="bg-[#DC26268e] hover:bg-[#DC2626] text-white px-4 py-2 rounded">
+                            disabled={!!modalError || !newItemName.trim()}
+                            className={`px-4 py-2 rounded transition-all
+                                ${(!!modalError || !newItemName.trim())
+                                    ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50"
+                                    : "bg-ide-accent hover:bg-red-700 text-white cursor-pointer"
+                                }`}>
                             Rename
                         </button>
                     </div>
@@ -419,7 +477,7 @@ export default function MainLayout() {
                         </button>
                         <button
                             type="submit"
-                            className="bg-[#DC26268e] hover:bg-[#DC2626] text-white px-4 py-2 rounded"
+                            className="bg-[#DC26268e] hover:bg-ide-accent text-white px-4 py-2 rounded"
                         >
                             Delete
                         </button>
@@ -439,7 +497,7 @@ export default function MainLayout() {
                                     expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}/>
 
                     {/* Resize Gutter */}
-                    <div className="relative w-1 h-full bg-[#1e1e1e] hover:bg-[#DC26268E] active:bg-[#DC2626] cursor-col-resize transition-colors shrink-0 group"
+                    <div className="relative w-1 h-full bg-[#1e1e1e] hover:bg-[#DC26268E] active:bg-ide-accent cursor-col-resize transition-colors shrink-0 group"
                             onMouseDown={handleMouseDown}>
 
                         <div className="absolute inset-y-0 -left-1 -right-1 cursol-col-resize z-10"/>
