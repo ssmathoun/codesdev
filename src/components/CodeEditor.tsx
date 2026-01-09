@@ -4,8 +4,9 @@ import type { editor } from 'monaco-editor';
 import { useRef } from 'react';
 import type { folderStructureData } from "../types/types";
 import FileTabs from './FileTabs';
+import WelcomePage from "../components/WelcomePage";
 
-export default function CodeEditor({data, isSaving, setIsSaving, updateFileContent, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], updateFileContent: (id: number, newContent: string) => void, addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>, isSaving: boolean, setIsSaving: (prev: boolean) => void}) {
+export default function CodeEditor({data, getPath, handleOpenTab, isSaving, setIsSaving, updateFileContent, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], getPath: (id: number) => number[], handleOpenTab: (id: number) => void, updateFileContent: (id: number, newContent: string) => void, addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>, isSaving: boolean, setIsSaving: (prev: boolean) => void}) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // Stores current editor content
 
   /*
@@ -33,7 +34,7 @@ export default function CodeEditor({data, isSaving, setIsSaving, updateFileConte
   return (
     <>
       {openedId !== null ? (
-      <FileTabs data={data} openedId={openedId} handleOpenedId={handleOpenedId}
+      <FileTabs data={data} getPath={getPath} handleOpenTab={handleOpenTab} openedId={openedId} handleOpenedId={handleOpenedId}
       openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
       expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
       ) : null}
@@ -53,7 +54,9 @@ export default function CodeEditor({data, isSaving, setIsSaving, updateFileConte
           minimap: { enabled: false },
         }}
       />
-      ) : null}
+      ) : (
+          <WelcomePage />
+      )}
     </>
   );
 }

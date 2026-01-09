@@ -31,3 +31,14 @@ export interface OutputConsoleProps {
     onClose: () => void;
     height: number;
 }
+
+export interface CommandPaletteProps {
+    isOpen: boolean;
+    onClose: () => void;
+    query: string;
+    setQuery: (val: string) => void;
+    results: folderStructureData[];
+    onSelect: (id: number) => void;
+    getPath: (id: number) => number[];
+    itemLookup: Map<number, folderStructureData>;
+}

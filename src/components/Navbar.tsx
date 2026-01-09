@@ -1,8 +1,8 @@
 import {Cloud, GitBranch, Command, Search, Play, Share, UserPlus} from "lucide-react";
 
-export default function Navbar({isSaving}: {isSaving: boolean}) {
+export default function Navbar({isSaving, setIsCommandPaletteOpen}: {isSaving: boolean, setIsCommandPaletteOpen: (prev: boolean) => void}) {
     return (
-        <nav className="flex items-center justify-between px-4 w-full h-full bg-[#DC2626] text-white select-none">
+        <nav className="flex items-center justify-between px-4 w-full h-full bg-ide-accent text-white select-none">
 
             <div className="flex items-center gap-4 flex-1 justify-start">
                 <h1 className="tracking-tight">codesdev</h1>
@@ -21,13 +21,14 @@ export default function Navbar({isSaving}: {isSaving: boolean}) {
             </div>
 
             <div className="flex flex-1 justify-center max-w-2xl px-8">
-                <div className="relative group w-full">
+                <div 
+                    className="relative group w-full"
+                    onClick={() => setIsCommandPaletteOpen(true)}
+                >
                     <Search size={20} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-white transition-colors"/>
-                    <input 
-                        type="text" 
-                        placeholder="Search files, commands, etc..." 
-                        className="w-full bg-[#1e1e1e33] border border-transparent focus:bg-[#1e1e1e66] focus:border-zinc-500 rounded-md py-1.5 pl-9 pr-4 text-sm outline-none transition-all placeholder:text-zinc-300"
-                    />
+                    <div className="w-full bg-[#1e1e1e33] border border-transparent rounded-md py-1.5 pl-9 pr-4 text-sm outline-none text-zinc-300">
+                        Search files... 
+                    </div>
                 </div>
             </div>
 
@@ -39,9 +40,9 @@ export default function Navbar({isSaving}: {isSaving: boolean}) {
                 </div>
 
                 <div className="flex -space-x-2">
-                    <img src="https://i.pravatar.cc/32?img=1" className="w-8 h-8 rounded-full border-2 border-[#DC2626]" />
-                    <img src="https://i.pravatar.cc/32?img=2" className="w-8 h-8 rounded-full border-2 border-[#DC2626]" />
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-800 text-[10px] font-bold border-2 border-[#DC2626]">
+                    <img src="https://i.pravatar.cc/32?img=1" className="w-8 h-8 rounded-full border-2 border-ide-accent" />
+                    <img src="https://i.pravatar.cc/32?img=2" className="w-8 h-8 rounded-full border-2 border-ide-accent" />
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-800 text-[10px] font-bold border-2 border-ide-accent">
                         +1
                     </div>
                 </div>

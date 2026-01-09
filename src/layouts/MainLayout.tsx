@@ -8,6 +8,7 @@ import type { folderStructureData } from "../types/types";
 import Modal from "../components/Modal";
 import Navbar from "../components/Navbar";
 import OutputConsole from "../components/OutputConsole"
+import CommandPalette from "../components/CommandPallete";
 
 const dirData: folderStructureData[] = [
     { id: 1, name: 'index.tsx', type: 'file', content: 'index.tsx'},
@@ -132,7 +133,23 @@ export default function MainLayout() {
             buildLookupTable(data);   
             return map;
         }, [data]);
+    
+    const getPath = useCallback((itemId: number): number[] => {
+        const path: number[] = [];
 
+        function findPath(item: folderStructureData | undefined): number[] | null {
+            if (!item) return null;
+            path.push(item.id);
+            if (item.parent == null) {
+                return path;
+            }
+            const parentItem = itemLookup.get(item.parent);
+            return findPath(parentItem);
+        }
+        findPath(itemLookup.get(itemId));
+        return path.reverse();
+    }, [data, itemLookup]);
+    
     const [expandedIds, setExpandedIds] = useState<number[]>([]);
     const handleExpandedIds = (id: number) => {
         if (itemLookup.get(id)?.type === "folder") {
@@ -241,33 +258,28 @@ export default function MainLayout() {
     const deleteItem = (deleteItemId: number) => {
         const itemToDelete = itemLookup.get(deleteItemId);
         if (!itemToDelete) return;
-
+    
+        const collectAllIds = (item: folderStructureData): number[] => {
+            let ids = [item.id];
+            if (item.children) {
+                item.children.forEach(child => {
+                    ids = [...ids, ...collectAllIds(child)];
+                });
+            }
+            return ids;
+        };
+    
+        const idsToRemove = collectAllIds(itemToDelete);
+    
+        if (openedId && idsToRemove.includes(openedId)) {
+            setOpenedId(null);
+        }
+    
+        setOpenedFileTabsId(prev => prev.filter(id => !idsToRemove.includes(id)));
+        setExpandedIds(prev => prev.filter(id => !idsToRemove.includes(id)));
         deleteItemFromData(itemToDelete);
         setDeleteItemId(null);
         setIsDeleteModalOpen(false);
-
-        if (itemToDelete.type === "file") {
-            handleOpenedFileTabsId(deleteItemId, true);
-        }
-        else {
-            const collectFileIds = (item: folderStructureData): number[] => {
-                let fileIds: number[] = [];
-                if (item.type === "file") {
-                    fileIds.push(item.id);
-                }
-                else if (item.children) {
-                    item.children.forEach(child => {
-                        fileIds = fileIds.concat(collectFileIds(child));
-                    })
-                }
-                return fileIds;
-            }
-
-            const fileIdsToClose = collectFileIds(itemToDelete);
-            setOpenedFileTabsId(prev => prev.filter(id => !fileIdsToClose.includes(id)));
-        }
-        setExpandedIds(prev => prev.filter(id => id !== deleteItemId));
-        setOpenedId(null);
     };
 
     const cancelDelete = () => {
@@ -382,6 +394,64 @@ export default function MainLayout() {
         document.addEventListener("mouseup", handleMouseUp);
 
     };
+
+    const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const searchResults = useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        
+        return Array.from(itemLookup.values()).filter(item => 
+            item.type === "file" && 
+            item.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ).slice(0, 8);
+    }, [searchQuery, itemLookup]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+                e.preventDefault();
+                setIsCommandPaletteOpen(prev => !prev);
+                setSearchQuery("");
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+                e.preventDefault();
+                setIsConsoleOpen(prev => !prev);
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                setIsSaving(true);
+                setTimeout(() => setIsSaving(false), 800);
+                setLogs(prev => [...prev, `Saved project at ${new Date().toLocaleTimeString()}`]);
+            }
+
+            if (e.key === 'Escape') {
+                setIsCommandPaletteOpen(false);
+                setMenuPos(null);
+                setIsAddModalOpen(false);
+                setIsDeleteModalOpen(false);
+                setIsRenameModalOpen(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    function handleOpenTab(itemId: number) {
+        const path = getPath(itemId);
+        
+        path.forEach(id => {
+            if (!expandedIds.includes(id)){
+                handleExpandedIds(id);
+            }
+        }) 
+        
+        handleOpenedId(itemId);
+    }
 
     return (
         <>
@@ -522,7 +592,7 @@ export default function MainLayout() {
             <div className="grid grid-rows-[48px_1fr] h-screen w-full overflow-hidden">
 
                 {/* Top Navbar */}
-                <Navbar isSaving={isSaving}/>
+                <Navbar isSaving={isSaving} setIsCommandPaletteOpen={setIsCommandPaletteOpen}/>
 
                 <div className="h-full w-full flex overflow-hidden">
                     <FileSidebar data={data} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
@@ -540,7 +610,7 @@ export default function MainLayout() {
 
                         {/* Editor Section */}
                         <div className="flex-1 min-h-0 overflow-hidden">
-                            <CodeEditor data={data} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <CodeEditor data={data} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                         </div>
@@ -565,6 +635,17 @@ export default function MainLayout() {
 
                 </div> 
             </div>
+        
+            <CommandPalette 
+                isOpen={isCommandPaletteOpen}
+                onClose={() => { setIsCommandPaletteOpen(false); setSearchQuery(""); }}
+                query={searchQuery}
+                setQuery={setSearchQuery}
+                results={searchResults}
+                onSelect={(id) => {handleOpenedId(id); handleOpenedFileTabsId(id); handleOpenTab(id);}}
+                getPath={getPath}
+                itemLookup={itemLookup}
+            />
             
         </>
     )

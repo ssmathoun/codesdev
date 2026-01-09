@@ -2,8 +2,8 @@ import { useCallback, useRef, useEffect} from "react";
 import type { folderStructureData } from "../types/types";
 import { X, ChevronRight } from "lucide-react";
 
-export default function FileTabs({data, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId,
-expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], openedId: number | null, handleOpenedId: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void , expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
+export default function FileTabs({data, getPath, handleOpenTab, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId,
+expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], getPath: (id: number) => number[], handleOpenTab: (id: number) => void, openedId: number | null, handleOpenedId: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void , expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
 
     const tabRefs = useRef<Map<number, HTMLDivElement>>(new Map());
     const breadcrumbRef = useRef<HTMLDivElement>(null);
@@ -23,34 +23,6 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], ope
             breadcrumbRef.current.scrollLeft = breadcrumbRef.current.scrollWidth;
         }
     }, [openedId]);
-    
-    const getPath = useCallback((itemId: number): number[] => {
-        const path: number[] = [];
-
-        function findPath(item: folderStructureData | undefined): number[] | null {
-            if (!item) return null;
-            path.push(item.id);
-            if (item.parent == null) {
-                return path;
-            }
-            const parentItem = itemLookup.get(item.parent);
-            return findPath(parentItem);
-        }
-        findPath(itemLookup.get(itemId));
-        return path.reverse();
-    }, [data, itemLookup]);
-
-    function handleClick(itemId: number) {
-        const path = getPath(itemId);
-        
-        path.forEach(id => {
-            if (!expandedIds.includes(id)){
-                handleExpandedIds(id);
-            }
-        }) 
-        
-        handleOpenedId(itemId);
-    }
 
     function toggleTab(itemId: number, toggle: boolean = false) {
         handleOpenedFileTabsId(itemId, toggle);
@@ -71,7 +43,7 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], ope
                         if (elm) tabRefs.current.set(itemId, elm);
                         else tabRefs.current.delete(itemId);
                     }}
-                    onClick={() => handleClick(itemId)}
+                    onClick={() => handleOpenTab(itemId)}
                     className={`flex shrink-0 items-center justify-between min-w-30 max-w-50 h-full px-3 hover:bg-[#1E1E1E] hover:text-white border border-[#2E2E2E] cursor-pointer transition-colors ${
                         isActive ? "bg-[#1E1E1E] text-white border-t border-[#DC2C2C8E]" : "bg-ide-bg text-zinc-400"
                     }`}
