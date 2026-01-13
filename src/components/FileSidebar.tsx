@@ -17,7 +17,6 @@ export default function FileSidebar({
     setIsAddModalOpen,
     isDeleteModalOpen,
     setIsDeleteModalOpen,
-    width,
     openedId,
     handleOpenedId,
     openedFileTabsId,
@@ -25,6 +24,10 @@ export default function FileSidebar({
     expandedIds,
     handleExpandedIds,
     itemLookup,
+    isSidebarVisible,
+    activeFolderId,
+    setActiveFolderId,
+    isResizing
 }: {
     data: folderStructureData[];
     menuPos: { x: number; y: number } | null;
@@ -40,7 +43,6 @@ export default function FileSidebar({
     isDeleteModalOpen: boolean;
     deleteItemId: number | null;
     addItemToData: (item: folderStructureData) => void;
-    width: string;
     openedId: number | null;
     handleOpenedId: (id: number) => void;
     openedFileTabsId: number[];
@@ -48,34 +50,43 @@ export default function FileSidebar({
     expandedIds: number[];
     handleExpandedIds: (id: number) => void;
     itemLookup: Map<number, folderStructureData>;
+    isSidebarVisible: boolean;
+    activeFolderId: number | null;
+    setActiveFolderId: (prev: number | null) => void;
+    isResizing: boolean;
 }) {
     function addItem(e: React.MouseEvent, itemType: "file" | "folder") {
         e.stopPropagation();
         setIsAddModalOpen(true);
         setNewItemType(itemType);
-        setPendingParentId(null);
+        setPendingParentId(activeFolderId);
     }
 
     return (
         /* Sidebar */
         <aside
-            className="flex flex-col h-full shrink-0 bg-ide-bg border-r border-[#2E2E2E] text-white overflow-hidden"
-            style={{ width: `${width}vw` }}
+            // Force the aside to always be 100% of the parent div's width
+            className={`flex flex-col h-full w-full bg-ide-bg text-white transition-none
+                ${!isSidebarVisible ? "invisible overflow-hidden" : "visible"}`}
         >
             <div className="shrink-0">
                 <h2 className="my-4 text-center text-xl">project name</h2>
 
                 <div className="flex items-center justify-end mx-2 mb-1 gap-2">
-                    <button>
+                    <button
+                        title="New File (Ctrl+N)"
+                        onClick={(e) => addItem(e, "file")}
+                    >
                         <FilePlus
-                            onClick={(e) => addItem(e, "file")}
                             size={18}
                             className="text-zinc-500 hover:text-white"
                         />
                     </button>
-                    <button>
+                    <button
+                        title="New Folder"
+                        onClick={(e) => addItem(e, "folder")}
+                    >
                         <FolderPlus
-                            onClick={(e) => addItem(e, "folder")}
                             size={18}
                             className="text-zinc-500 hover:text-white"
                         />
@@ -106,6 +117,8 @@ export default function FileSidebar({
                     isDeleteModalOpen={isDeleteModalOpen}
                     setIsDeleteModalOpen={setIsDeleteModalOpen}
                     setDeleteItemId={setDeleteItemId}
+                    activeFolderId={activeFolderId}
+                    setActiveFolderId={setActiveFolderId}
                 />
             </div>
         </aside>

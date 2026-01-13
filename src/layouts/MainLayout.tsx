@@ -90,9 +90,13 @@ export default function MainLayout() {
     
     const [sidebarWidth, setSidebarWidth] = useState("15"); // Tracks FileSidebar Width
     const [openedId, setOpenedId] = useState<number | null>(null); // Tracks Open File/Folder IDs
+    const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
+
     const handleOpenedId = (id: number) => {
-        if (itemLookup.get(id)?.type === "file") {
+        const item = itemLookup.get(id)
+        if (item?.type === "file") {
             setOpenedId(id);
+            setActiveFolderId(item.parent ? item.parent : null)
         }
     };
     const [openedFileTabsId, setOpenedFileTabsId] = useState<number[]>(openedId !== null ? [openedId] : []);
@@ -287,11 +291,15 @@ export default function MainLayout() {
     };
 
     const [pendingParentId, setPendingParentId] = useState<number | null>(null);
+    const [isResizing, setIsResizing] = useState(false);
 
     /*
     Function to resize the sidebar on mouse down event.
     */
-    const handleMouseDown = () => {
+    const handleMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+        
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const newWidth = (moveEvent.clientX / window.innerWidth) * 100;
 
@@ -301,6 +309,7 @@ export default function MainLayout() {
         };
 
         const handleMouseUp = () => {
+            setIsResizing(false);
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
         }
@@ -397,7 +406,7 @@ export default function MainLayout() {
 
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-
+    
     const searchResults = useMemo(() => {
         if (!searchQuery.trim()) return [];
         
@@ -407,24 +416,39 @@ export default function MainLayout() {
         ).slice(0, 8);
     }, [searchQuery, itemLookup]);
 
+    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
                 e.preventDefault();
                 setIsCommandPaletteOpen(prev => !prev);
                 setSearchQuery("");
             }
 
-            if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j') {
                 e.preventDefault();
                 setIsConsoleOpen(prev => !prev);
             }
 
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                e.preventDefault();
+                setIsSidebarVisible(prev => !prev);
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                 e.preventDefault();
                 setIsSaving(true);
                 setTimeout(() => setIsSaving(false), 800);
                 setLogs(prev => [...prev, `Saved project at ${new Date().toLocaleTimeString()}`]);
+            }
+
+            if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                setNewItemType("file");
+                setIsAddModalOpen(true);
+                setPendingParentId(activeFolderId);
             }
 
             if (e.key === 'Escape') {
@@ -436,10 +460,10 @@ export default function MainLayout() {
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keydown', handleKeyDown, { capture: true });
         
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+        return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    }, [activeFolderId]);
 
     function handleOpenTab(itemId: number) {
         const path = getPath(itemId);
@@ -592,21 +616,42 @@ export default function MainLayout() {
             <div className="grid grid-rows-[48px_1fr] h-screen w-full overflow-hidden">
 
                 {/* Top Navbar */}
-                <Navbar isSaving={isSaving} setIsCommandPaletteOpen={setIsCommandPaletteOpen}/>
+                <Navbar 
+                    isSaving={isSaving} 
+                    setIsCommandPaletteOpen={setIsCommandPaletteOpen}
+                    isSidebarVisible={isSidebarVisible} 
+                    setIsSidebarVisible={setIsSidebarVisible}
+                    isConsoleOpen={isConsoleOpen}
+                    setIsConsoleOpen={setIsConsoleOpen}
+                />
 
-                <div className="h-full w-full flex overflow-hidden">
-                    <FileSidebar data={data} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} width={sidebarWidth} openedId={openedId} handleOpenedId={handleOpenedId}
+                <div className="h-full w-full flex overflow-hidden relative">
+                    <div 
+                    style={{ 
+                        width: isSidebarVisible ? `${sidebarWidth}%` : '0px',
+                        opacity: isSidebarVisible ? 1 : 0 
+                    }} 
+                    className={`h-full shrink-0 overflow-hidden border-r border-ide-border 
+                        ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
+                    >
+                        <FileSidebar data={data} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-                                    expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}/>
+                                    expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing}/>
+                    </div>
 
                     {/* Sidebar Resize Gutter */}
+                    {isSidebarVisible && (
                     <div className="relative w-1 h-full bg-[#1e1e1e] hover:bg-[#DC26268E] active:bg-ide-accent cursor-col-resize transition-colors shrink-0 group"
                             onMouseDown={handleMouseDown}>
 
                         <div className="absolute inset-y-0 -left-1 -right-1 cursol-col-resize z-10"/>
                     </div>
+                    )}
                     
-                    <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+                    <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
+                    {isResizing && (
+                        <div className="absolute inset-0 z-100 cursor-col-resize bg-transparent" />
+                    )}
 
                         {/* Editor Section */}
                         <div className="flex-1 min-h-0 overflow-hidden">

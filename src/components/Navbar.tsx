@@ -1,6 +1,6 @@
-import {Cloud, GitBranch, Command, Search, Play, Share, UserPlus} from "lucide-react";
+import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus} from "lucide-react";
 
-export default function Navbar({isSaving, setIsCommandPaletteOpen}: {isSaving: boolean, setIsCommandPaletteOpen: (prev: boolean) => void}) {
+export default function Navbar({isSaving, setIsCommandPaletteOpen, isSidebarVisible, setIsSidebarVisible, isConsoleOpen, setIsConsoleOpen}: {isSaving: boolean, setIsCommandPaletteOpen: (prev: boolean) => void, isSidebarVisible: boolean, setIsSidebarVisible: (prev: boolean) => void, isConsoleOpen: boolean, setIsConsoleOpen: (prev: boolean) => void}) {
     return (
         <nav className="flex items-center justify-between px-4 w-full h-full bg-ide-accent text-white select-none">
 
@@ -14,9 +14,23 @@ export default function Navbar({isSaving, setIsCommandPaletteOpen}: {isSaving: b
                 </div>
                 : null}
 
-                <div className="flex items-center gap-4 opacity-80 ml-4">
-                    <GitBranch size={24} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity"/>
-                    <Command size={24} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity"/>
+                <div className="flex items-center gap-4 ml-4">
+                    <button 
+                        onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                        className={`cursor-pointer transition-opacity border-b-2 py-1 ${isSidebarVisible ? "border-b-white opacity-100" : "border-b-transparent opacity-80 hover:opacity-100"}`}
+                        title="Toggle Sidebar (Ctrl+B)"
+                    >
+                        <PanelLeft size={24} strokeWidth={1.5} />
+                    </button>
+                    <button 
+                        onClick={() => setIsConsoleOpen(!isConsoleOpen)}
+                        className={`cursor-pointer transition-opacity border-b-2 py-1 ${isConsoleOpen ? "border-b-white opacity-100" : "border-b-transparent opacity-80 hover:opacity-100"}`}
+                        title="Toggle Console (Ctrl+J)"
+                    >
+                        <Terminal size={24} strokeWidth={1.5} />
+                    </button>
+                    <GitBranch size={24} strokeWidth={1.5} className="hover:opacity-100 opacity-80 cursor-pointer transition-opacity"/>
+                    <Command size={24} strokeWidth={1.5} className="hover:opacity-100 opacity-80 cursor-pointer transition-opacity"/>
                 </div>
             </div>
 

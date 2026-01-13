@@ -1,4 +1,4 @@
-import { Search, Terminal as TerminalIcon } from "lucide-react";
+import { Search, Terminal as TerminalIcon, PanelLeft, Save, FilePlus } from "lucide-react";
 
 export default function WelcomePage() {
     const Shortcut = ({ icon: Icon, label, keys }: { icon: any, label: string, keys: string[] }) => (
@@ -28,8 +28,11 @@ export default function WelcomePage() {
         
             {/* Shortcuts Grid */}
             <div className="flex flex-col gap-2">
-                <Shortcut icon={Search} label="Search Files" keys={["Ctrl", "P"]} />
-                <Shortcut icon={TerminalIcon} label="Toggle Console" keys={["Ctrl", "J"]} />
+                <Shortcut icon={Search} label="Search Files" keys={["Ctrl / Cmd", "P"]} />
+                <Shortcut icon={TerminalIcon} label="Toggle Console" keys={["Ctrl / Cmd", "J"]} />
+                <Shortcut icon={PanelLeft} label="Toggle Sidebar" keys={["Ctrl / Cmd", "B"]} />
+                <Shortcut icon={Save} label="Save" keys={["Ctrl / Cmd", "S"]} />
+                <Shortcut icon={FilePlus} label="New File" keys={["Ctrl", "N"]} />
             </div>
 
             {/* Footer Tip */}

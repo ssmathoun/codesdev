@@ -1,8 +1,8 @@
 import { ChevronDown, ChevronRight, Ellipsis } from "lucide-react";
 import type { folderStructureData } from "../types/types";
 
-export default function FolderStructure({ data, menuPos, handleContextMenu, pendingParentId, setPendingParentId, newItemType, setNewItemType, deleteItemId, setDeleteItemId, isAddModalOpen, setIsAddModalOpen, isDeleteModalOpen, setIsDeleteModalOpen, addItemToData, depth = 0, isIdOpened, handleIsIdOpened, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: { data: folderStructureData[], menuPos: {x: number, y: number} | null, handleContextMenu: (e: React.MouseEvent, item: folderStructureData) => void, pendingParentId: number | null, setPendingParentId: (prev: number | null) => void, newItemType: "file" | "folder" | null, setDeleteItemId: (prev: number | null) => void, setNewItemType: (prev: "file" | "folder") => void, addItemToData: (item: folderStructureData) => void, depth?: number, isIdOpened: number | null, handleIsIdOpened: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>
-    deleteItemId: number | null, isAddModalOpen: boolean, setIsAddModalOpen: (prev: boolean) => void, isDeleteModalOpen: boolean, setIsDeleteModalOpen: (prev: boolean) => void,
+export default function FolderStructure({ data, menuPos, handleContextMenu, pendingParentId, setPendingParentId, newItemType, setNewItemType, deleteItemId, setDeleteItemId, isAddModalOpen, setIsAddModalOpen, isDeleteModalOpen, setIsDeleteModalOpen, addItemToData, depth = 0, isIdOpened, handleIsIdOpened, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup, activeFolderId, setActiveFolderId}: { data: folderStructureData[], menuPos: {x: number, y: number} | null, handleContextMenu: (e: React.MouseEvent, item: folderStructureData) => void, pendingParentId: number | null, setPendingParentId: (prev: number | null) => void, newItemType: "file" | "folder" | null, setDeleteItemId: (prev: number | null) => void, setNewItemType: (prev: "file" | "folder") => void, addItemToData: (item: folderStructureData) => void, depth?: number, isIdOpened: number | null, handleIsIdOpened: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>
+    deleteItemId: number | null, isAddModalOpen: boolean, setIsAddModalOpen: (prev: boolean) => void, isDeleteModalOpen: boolean, setIsDeleteModalOpen: (prev: boolean) => void, activeFolderId: number | null, setActiveFolderId: (prev: number | null) => void,
 }) {
     
     function handleClick(item: folderStructureData) {
@@ -11,6 +11,9 @@ export default function FolderStructure({ data, menuPos, handleContextMenu, pend
         
         if (item.type === "file") {
             handleOpenedFileTabsId(item.id);
+        }
+        else {
+            setActiveFolderId(item.id);
         }
     }
 
@@ -33,7 +36,7 @@ export default function FolderStructure({ data, menuPos, handleContextMenu, pend
                 
                 : (
                     <>
-                        <div onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 12}px`}} className={(item.id === isIdOpened) ? "group bg-[#DC26268e] flex gap-1 whitespace-nowrap items-center" : "group flex gap-1 hover:bg-[#2e2e2e] items-center whitespace-nowrap"}>
+                        <div onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 12}px`}} className={(item.id === activeFolderId) ? "group bg-[#2e2e2e] flex gap-1 whitespace-nowrap items-center" : "group flex gap-1 hover:bg-[#2e2e2e] items-center whitespace-nowrap"}>
                             {isOpen ? <ChevronDown size={18} className="shrink-0"/> : <ChevronRight size={18} className="shrink-0"/>}
                             <span className="mr-2 truncate">
                                 {item.name}
@@ -46,7 +49,7 @@ export default function FolderStructure({ data, menuPos, handleContextMenu, pend
                         <FolderStructure newItemType={newItemType} menuPos={menuPos} handleContextMenu={handleContextMenu} setNewItemType={setNewItemType} data={item.children} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} addItemToData={addItemToData} depth={depth + 1} isIdOpened={isIdOpened} handleIsIdOpened={handleIsIdOpened}
                         openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId} expandedIds={expandedIds} handleExpandedIds={handleExpandedIds}
                         itemLookup={itemLookup} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen}
-                        deleteItemId={deleteItemId} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen}/>
+                        deleteItemId={deleteItemId} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId}/>
                         : null}
 
                     </>
