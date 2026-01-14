@@ -1,7 +1,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
 import LandingPage from './pages/LandingPage'
-// import HomePage from './pages/HomePage'
+import HomePage from './pages/HomePage'
 import './index.css'
 
 function App() {
@@ -10,6 +10,11 @@ function App() {
     {
       path: "/",
       element: <LandingPage />
+
+    },
+    {
+      path: "/home",
+      element: <HomePage />
 
     },
     {
