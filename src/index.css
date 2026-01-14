@@ -12,13 +12,13 @@
 
 @layer base {
     html, body {
-      @apply overscroll-none h-screen w-screen overflow-hidden antialiased;
+      @apply antialiased min-h-full w-full m-0 p-0;
       font-family: var(--font-sans);
       background-color: var(--color-ide-bg);
     }
   
     #root {
-      @apply h-full;
+      @apply min-h h-full;
     }
 }
 
