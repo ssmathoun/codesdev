@@ -28,6 +28,29 @@ const dirData: folderStructureData[] = [
 
 export default function MainLayout() {
     const { projectId } = useParams();
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchProjectData = async () => {
+            setIsLoading(true);
+            try {
+                // Placeholder: Later -> fetch(...)
+                console.log(`Fetching data for room: ${projectId}`);
+                
+                // Simulating network delay
+                await new Promise(res => setTimeout(res, 500));
+                
+                setData(dirData); 
+            } catch (error) {
+                setLogs(prev => [...prev, "Error: Failed to join project room."]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+    
+        fetchProjectData();
+    }, [projectId]);
+
     const [data, setData] = useState<folderStructureData[]>(dirData);
     const addItemToData = (newItem: folderStructureData) : void => {
         const parentId = newItem.parent ?? null;
@@ -138,8 +161,13 @@ export default function MainLayout() {
             return map;
         }, [data]);
     
-    const getPath = useCallback((itemId: number): number[] => {
+    const getPath = useCallback((itemId: number | null): number[] => {
+        if (itemId === null) return [];
+
         const path: number[] = [];
+        const item = itemLookup.get(itemId);
+        
+        if (!item) return [];
 
         function findPath(item: folderStructureData | undefined): number[] | null {
             if (!item) return null;
@@ -150,7 +178,7 @@ export default function MainLayout() {
             const parentItem = itemLookup.get(item.parent);
             return findPath(parentItem);
         }
-        findPath(itemLookup.get(itemId));
+        findPath(item);
         return path.reverse();
     }, [data, itemLookup]);
     
@@ -479,6 +507,10 @@ export default function MainLayout() {
 
     return (
         <>
+            {isLoading && (
+                <div className="h-screen w-full flex items-center justify-center bg-ide-bg text-white">Joining Room...</div>
+            )}
+
             {menuPos !== null ?
             <ContextMenu x={menuPos.x} y={menuPos.y} selectType={pendingParentId ? "folder" : "file"} onClose={() => setMenuPos(null)} onNewFile={() => addItemModal("file")}
                             onNewFolder={() => addItemModal("folder")} onDelete={deleteItemModal} onRename={renameItemModal}/>
@@ -524,7 +556,7 @@ export default function MainLayout() {
                             className={`px-4 py-2 rounded transition-all
                                 ${(!!modalError || !newItemName.trim())
                                     ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50"
-                                    : "bg-ide-accent hover:bg-red-700 text-white cursor-pointer"
+                                    : "bg-[#DC26268e] hover:bg-ide-accent text-white cursor-pointer"
                                 }`}>
                             Create
                         </button>
@@ -573,7 +605,7 @@ export default function MainLayout() {
                             className={`px-4 py-2 rounded transition-all
                                 ${(!!modalError || !newItemName.trim())
                                     ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-50"
-                                    : "bg-ide-accent hover:bg-red-700 text-white cursor-pointer"
+                                    : "bg-[#DC26268e] hover:bg-ide-accent text-white cursor-pointer"
                                 }`}>
                             Rename
                         </button>

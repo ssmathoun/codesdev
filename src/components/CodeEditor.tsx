@@ -1,13 +1,121 @@
 import Editor, { DiffEditor, useMonaco, loader } from '@monaco-editor/react';
-import type { OnMount } from '@monaco-editor/react';
+import type { BeforeMount, OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import type { folderStructureData } from "../types/types";
 import FileTabs from './FileTabs';
 import WelcomePage from "../components/WelcomePage";
 
-export default function CodeEditor({data, getPath, handleOpenTab, isSaving, setIsSaving, updateFileContent, addItemToData, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId, expandedIds, handleExpandedIds, itemLookup}: {data: folderStructureData[], getPath: (id: number) => number[], handleOpenTab: (id: number) => void, updateFileContent: (id: number, newContent: string) => void, addItemToData: (item: folderStructureData) => void, openedId: number | null, handleOpenedId: (opened: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void, expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>, isSaving: boolean, setIsSaving: (prev: boolean) => void}) {
+export default function CodeEditor({
+  data,
+  getPath,
+  handleOpenTab,
+  isSaving,
+  setIsSaving,
+  updateFileContent,
+  addItemToData,
+  openedId,
+  handleOpenedId,
+  openedFileTabsId,
+  handleOpenedFileTabsId,
+  expandedIds,
+  handleExpandedIds,
+  itemLookup,
+}: {
+  data: folderStructureData[];
+  getPath: (id: number) => number[];
+  handleOpenTab: (id: number) => void;
+  updateFileContent: (id: number, newContent: string) => void;
+  addItemToData: (item: folderStructureData) => void;
+  openedId: number | null;
+  handleOpenedId: (opened: number) => void;
+  openedFileTabsId: number[];
+  handleOpenedFileTabsId: (id: number, toggle?: boolean) => void;
+  expandedIds: number[];
+  handleExpandedIds: (id: number) => void;
+  itemLookup: Map<number, folderStructureData>;
+  isSaving: boolean;
+  setIsSaving: (prev: boolean) => void;
+}) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // Stores current editor content
+  const monaco = useMonaco(); // Access the monaco instance
+  const activeFile = openedId !== null ? itemLookup.get(openedId) : null;
+
+  const getLanguage = (fileName?: string) => {
+    if (!fileName) return 'javascript';
+    if (fileName.endsWith('.tsx') || fileName.endsWith('.ts')) return 'typescript';
+    if (fileName.endsWith('.css')) return 'css';
+    if (fileName.endsWith('.html')) return 'html';
+    return 'javascript';
+  };
+  
+  const virtualPath =
+    activeFile && openedId
+      ? getPath(openedId)
+          .map((id) => itemLookup.get(id)?.name)
+          .join('/')
+      : '';
+
+  useEffect(() => {
+    if (!monaco || !data) return;
+
+    const currentUris = new Set<string>();
+
+    const syncModelsRecursively = (items: folderStructureData[]) => {
+      items.forEach((item) => {
+        if (item.type === 'file') {
+          const pathParts = getPath(item.id).map((id) => itemLookup.get(id)?.name);
+          const fullPath = `file:///${pathParts.join('/')}`;
+          const uri = monaco.Uri.parse(fullPath);
+          currentUris.add(uri.toString());
+
+          const model = monaco.editor.getModel(uri);
+
+          if (model) {
+            if (model.getValue() !== item.content) {
+              model.setValue(item.content || '');
+            }
+          } else {
+            // Use getLanguage to set the correct language per model
+            monaco.editor.createModel(item.content || '', getLanguage(item.name), uri);
+          }
+        } else if (item.children) {
+          syncModelsRecursively(item.children);
+        }
+      });
+    };
+
+    syncModelsRecursively(data);
+
+    // Dispose of models that were deleted from the tree
+    monaco.editor.getModels().forEach(model => {
+      if (!currentUris.has(model.uri.toString())) {
+          model.dispose();
+      }
+  });
+  }, [data, monaco, getPath, itemLookup]);
+
+  /*
+    Setup TypeScript Compiler Options Before Mount
+  */
+  const handleEditorBeforeMount: BeforeMount = (monaco: any) => {
+    const tsDefaults = monaco.languages.typescript.typescriptDefaults;
+
+    tsDefaults.setCompilerOptions({
+      target: monaco.languages.typescript.ScriptTarget.ESNext,
+      allowNonTsExtensions: true,
+      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+      module: monaco.languages.typescript.ModuleKind.CommonJS,
+      noEmit: true,
+      jsx: monaco.languages.typescript.JsxEmit.React,
+      allowJs: true,
+      typeRoots: ['node_modules/@types'],
+      baseUrl: 'file:///',
+      paths: {
+        "*": ["*"]
+      }
+    });
+  };
 
   /*
     Function to handle editor mount event
@@ -21,42 +129,56 @@ export default function CodeEditor({data, getPath, handleOpenTab, isSaving, setI
     Function to handle editor content change event
   */
   function handleEditorChange(value: string | undefined) {
-    if (openedId !== null && typeof(value) === "string") {
+    if (openedId !== null && typeof value === 'string') {
       setIsSaving(true);
       updateFileContent(openedId, value);
     }
   }
-  
+
   function showValue() {
     alert(editorRef.current?.getValue());
   }
 
   return (
-    <>
-      {openedId !== null ? (
-      <FileTabs data={data} getPath={getPath} handleOpenTab={handleOpenTab} openedId={openedId} handleOpenedId={handleOpenedId}
-      openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-      expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      {openedId !== null && activeFile ? (
+        <FileTabs
+          data={data}
+          getPath={getPath}
+          handleOpenTab={handleOpenTab}
+          openedId={openedId}
+          handleOpenedId={handleOpenedId}
+          openedFileTabsId={openedFileTabsId}
+          handleOpenedFileTabsId={handleOpenedFileTabsId}
+          expandedIds={expandedIds}
+          handleExpandedIds={handleExpandedIds}
+          itemLookup={itemLookup}
+        />
       ) : null}
 
       {openedId !== null ? (
-      <Editor 
-        height="100%"
-        theme="vs-dark" 
-        defaultLanguage="javascript" 
-        value={itemLookup.get(openedId)?.content}
-        onMount={handleEditorDidMount}
-        onChange={handleEditorChange}
-        options={{
-          automaticLayout: true,
-          fontFamily: "'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, 'Courier New', monospace",
-          fontSize: 14,
-          minimap: { enabled: false },
-        }}
-      />
+        <Editor
+          height="100%"
+          theme="vs-dark"
+          path={`file:///${virtualPath}`}
+          language = {getLanguage(activeFile?.name)}
+          value={itemLookup.get(openedId)?.content}
+          onMount={handleEditorDidMount}
+          beforeMount={handleEditorBeforeMount}
+          onChange={handleEditorChange}
+          options={{
+            automaticLayout: true,
+            fontFamily:
+              "'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, 'Courier New', monospace",
+            fontSize: 14,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            fixedOverflowWidgets: true,
+          }}
+        />
       ) : (
-          <WelcomePage />
+        <WelcomePage />
       )}
-    </>
+    </div>
   );
 }
