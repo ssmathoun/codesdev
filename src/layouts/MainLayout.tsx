@@ -510,7 +510,7 @@ export default function MainLayout() {
             {isLoading && (
                 <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center bg-ide-bg text-white font-['Inter']">
                     <div className="w-12 h-12 border-4 border-white/10 border-t-ide-accent rounded-full animate-spin mb-4" />
-                    <h2 className="text-xl font-bold">Initializing Workspace...</h2>
+                    <h2 className="text-xl font-bold tracking-tighter">Initializing Workspace...</h2>
                     <p className="text-zinc-500 text-sm mt-2 font-mono">Room ID: {projectId}</p>
               </div>
             )}

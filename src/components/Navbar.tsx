@@ -39,8 +39,8 @@ export default function Navbar({isSaving, setIsCommandPaletteOpen, isSidebarVisi
                     className="relative group w-full"
                     onClick={() => setIsCommandPaletteOpen(true)}
                 >
-                    <Search size={20} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-white transition-colors"/>
-                    <div className="w-full bg-[#1e1e1e33] border border-transparent rounded-md py-1.5 pl-9 pr-4 text-sm outline-none text-zinc-300">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 group-focus-within:text-white transition-colors"/>
+                    <div className="w-full bg-[#1e1e1e33] border border-transparent rounded-md py-1.5 pl-9 pr-4 text-sm outline-none text-white/50">
                         Search files... 
                     </div>
                 </div>
