@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import debounce from "lodash.debounce";
 import CodeEditor from "../components/CodeEditor";
 import FileSidebar from "../components/FileSidebar";
@@ -28,18 +28,22 @@ const dirData: folderStructureData[] = [
 
 export default function MainLayout() {
     const { projectId } = useParams();
+    const location = useLocation();
     const [isLoading, setIsLoading] = useState(true);
+
+    const [projectName, setProjectName] = useState<string>(
+        location.state?.projectName || "Loading Project..."
+    );
 
     useEffect(() => {
         const fetchProjectData = async () => {
             setIsLoading(true);
             try {
-                // Placeholder: Later -> fetch(...)
-                console.log(`Fetching data for room: ${projectId}`);
+                if (!location.state?.projectName) {
+                    setProjectName(`Project: ${projectId}`); 
+                }
                 
-                // Simulating network delay
                 await new Promise(res => setTimeout(res, 500));
-                
                 setData(dirData); 
             } catch (error) {
                 setLogs(prev => [...prev, "Error: Failed to join project room."]);
@@ -47,9 +51,8 @@ export default function MainLayout() {
                 setIsLoading(false);
             }
         };
-    
         fetchProjectData();
-    }, [projectId]);
+    }, [projectId, location.state]);
 
     const [data, setData] = useState<folderStructureData[]>(dirData);
     const addItemToData = (newItem: folderStructureData) : void => {
@@ -111,7 +114,7 @@ export default function MainLayout() {
         setIsSaving(false);
     }
     
-    const [sidebarWidth, setSidebarWidth] = useState("15"); // Tracks FileSidebar Width
+    const [sidebarWidth, setSidebarWidth] = useState(260); // Tracks FileSidebar Width
     const [openedId, setOpenedId] = useState<number | null>(null); // Tracks Open File/Folder IDs
     const [activeFolderId, setActiveFolderId] = useState<number | null>(null);
 
@@ -329,10 +332,11 @@ export default function MainLayout() {
         setIsResizing(true);
         
         const handleMouseMove = (moveEvent: MouseEvent) => {
-            const newWidth = (moveEvent.clientX / window.innerWidth) * 100;
+            const newWidth = moveEvent.clientX;
 
-            if (newWidth >= 10 && newWidth <= 40) {
-                setSidebarWidth(newWidth.toString());
+            // Constrain the width (min 200px, max 600px or 40% of screen)
+            if (newWidth >= 200 && newWidth <= window.innerWidth * 0.4) {
+                setSidebarWidth(newWidth);
             }
         };
 
@@ -664,25 +668,16 @@ export default function MainLayout() {
                 <div className="h-full w-full flex overflow-hidden relative">
                     <div 
                     style={{ 
-                        width: isSidebarVisible ? `${sidebarWidth}%` : '0px',
+                        width: isSidebarVisible ? `${sidebarWidth}px` : '0px',
                         opacity: isSidebarVisible ? 1 : 0 
                     }} 
                     className={`h-full shrink-0 overflow-hidden border-r border-ide-border 
                         ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
                     >
-                        <FileSidebar data={data} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                        <FileSidebar data={data} projectName={projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                                     openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-                                    expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing}/>
+                                    expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
                     </div>
-
-                    {/* Sidebar Resize Gutter */}
-                    {isSidebarVisible && (
-                    <div className="relative w-1 h-full bg-[#1e1e1e] hover:bg-[#DC26268E] active:bg-ide-accent cursor-col-resize transition-colors shrink-0 group"
-                            onMouseDown={handleMouseDown}>
-
-                        <div className="absolute inset-y-0 -left-1 -right-1 cursol-col-resize z-10"/>
-                    </div>
-                    )}
                     
                     <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
                     {isResizing && (

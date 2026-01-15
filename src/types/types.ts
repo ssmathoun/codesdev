@@ -42,3 +42,12 @@ export interface CommandPaletteProps {
     getPath: (id: number) => number[];
     itemLookup: Map<number, folderStructureData>;
 }
+
+export type ViewMode = "grid" | "list";
+
+export type Category = "all" | "mine" | "shared-in" | "shared-out";
+
+export interface Collaborator {
+  name: string;
+  avatarUrl?: string;
+}

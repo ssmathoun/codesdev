@@ -4,6 +4,7 @@ import { FolderPlus, FilePlus } from "lucide-react";
 
 export default function FileSidebar({
     data,
+    projectName,
     menuPos,
     handleContextMenu,
     pendingParentId,
@@ -27,9 +28,11 @@ export default function FileSidebar({
     isSidebarVisible,
     activeFolderId,
     setActiveFolderId,
-    isResizing
+    isResizing,
+    handleMouseDown
 }: {
     data: folderStructureData[];
+    projectName: string;
     menuPos: { x: number; y: number } | null;
     handleContextMenu: (e: React.MouseEvent, item: folderStructureData) => void;
     pendingParentId: number | null;
@@ -54,6 +57,7 @@ export default function FileSidebar({
     activeFolderId: number | null;
     setActiveFolderId: (prev: number | null) => void;
     isResizing: boolean;
+    handleMouseDown: (e: React.MouseEvent) => void;
 }) {
     function addItem(e: React.MouseEvent, itemType: "file" | "folder") {
         e.stopPropagation();
@@ -65,12 +69,14 @@ export default function FileSidebar({
     return (
         /* Sidebar */
         <aside
-            // Force the aside to always be 100% of the parent div's width
-            className={`flex flex-col h-full w-full bg-ide-bg text-white transition-none
+            className={`flex flex-col relative h-full w-full bg-ide-bg text-white transition-none shrink-0 whitespace-nowrap
                 ${!isSidebarVisible ? "invisible overflow-hidden" : "visible"}`}
+                style={{ width: 'inherit' }}
         >
             <div className="shrink-0">
-                <h2 className="my-4 text-center text-xl">project name</h2>
+                <h2 className="my-4 mx-2 text-center text-xl font-normal tracking-normal truncate">
+                    {projectName}
+                </h2>
 
                 <div className="flex items-center justify-end mx-2 mb-1 gap-2">
                     <button
@@ -121,6 +127,16 @@ export default function FileSidebar({
                     setActiveFolderId={setActiveFolderId}
                 />
             </div>
+            
+            <div 
+                onMouseDown={handleMouseDown} 
+                className={`absolute right-0 top-0 w-1.5 h-full cursor-col-resize z-30
+                    hover:bg-ide-accent/50 transition-colors 
+                    ${isResizing ? 'bg-ide-accent w-1' : ''}`} 
+            >
+                <div className="absolute -left-1 w-3 h-full bg-transparent" />
+            </div>
+
         </aside>
     );
 }
