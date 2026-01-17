@@ -22,3 +22,17 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dependencies
+client/node_modules/
+client/dist/
+server/venv/
+server/__pycache__/
+
+# Environment and DB
+.env
+server/.env
+server/instance/
+server/*.sql
+*.sqlite3
+*.db

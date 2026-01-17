@@ -7,7 +7,7 @@ import {
 import Modal from "../components/Modal";
 import type { Category, Collaborator, ViewMode } from "../types/types";
 
-// --- Mock Data & Helpers ---
+// Mock Data & Helpers
 const getAvatar = (id: number) => `https://i.pravatar.cc/150?img=${id}`;
 
 const mockUsers: Record<string, Collaborator> = {

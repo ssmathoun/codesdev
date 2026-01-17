@@ -4,7 +4,7 @@ import type { editor } from 'monaco-editor';
 import { useRef, useEffect } from 'react';
 import type { folderStructureData } from "../types/types";
 import FileTabs from './FileTabs';
-import WelcomePage from "../components/WelcomePage";
+import WelcomePage from "./WelcomePage";
 
 export default function CodeEditor({
   data,
