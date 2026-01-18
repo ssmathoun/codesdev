@@ -18,7 +18,7 @@
     }
   
     #root {
-      @apply min-h h-full;
+      @apply min-h-0 h-full;
     }
 }
 

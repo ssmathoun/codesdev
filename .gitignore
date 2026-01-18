@@ -28,10 +28,11 @@ client/node_modules/
 client/dist/
 server/venv/
 server/__pycache__/
+server/*.pyc
 
 # Environment and DB
 .env
-server/.env
+server/venv/.env
 server/instance/
 server/*.sql
 *.sqlite3
