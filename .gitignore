@@ -32,7 +32,7 @@ server/*.pyc
 
 # Environment and DB
 .env
-server/venv/.env
+server/.env
 server/instance/
 server/*.sql
 *.sqlite3

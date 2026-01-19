@@ -1,12 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { Users, GitBranch, Terminal, ShieldCheck, Cpu, Globe, Github } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function LandingPage() {
   const navigate = useNavigate();
-
+  const { user } = useAuth();
+  
   const handleStartCoding = () => {
-    const roomId = Math.random().toString(36).substring(7);
-    navigate(`/editor/${roomId}`);
+    // If the AuthContext has a user, they are logged in via cookies
+    if (user) {
+      navigate("/home");
+    } else {
+      // If no user, send them to signup instead of the editor
+      navigate("/signup");
+    }
   };
 
   return (
@@ -18,8 +25,8 @@ export default function LandingPage() {
           codesdev
         </div>
         <div className="flex gap-8 items-center font-normal">
-          <button className="text-zinc-400 hover:text-white transition-colors text-sm">Login</button>
-          <button className="bg-white text-black px-6 py-2 rounded-full font-normal hover:bg-ide-accent hover:text-white transition-all text-sm">
+          <button onClick={() => navigate("/login")} className="text-zinc-400 hover:text-white transition-colors text-sm">Login</button>
+          <button onClick={() => navigate("/signup")} className="bg-white text-black px-6 py-2 rounded-full font-normal hover:bg-ide-accent hover:text-white transition-all text-sm">
             Sign Up
           </button>
         </div>
