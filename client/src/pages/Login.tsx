@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { LogIn, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 import { authService } from "../services/auth";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -54,15 +55,26 @@ export default function Login() {
             />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Password</label>
-            <input 
-              required
-              type="password"
-              className="bg-[#2A2A2A] border border-zinc-600 p-2.5 rounded text-white outline-none focus:border-ide-accent transition-all text-sm"
-              placeholder="••••••••"
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            />
+          <div className="flex flex-col gap-1.5 relative">
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-1">
+              Security Password
+            </label>
+            <div className="relative">
+              <input 
+                required
+                type={showPassword ? "text" : "password"}
+                className="w-full bg-[#2A2A2A] border border-zinc-600 p-2.5 rounded text-white outline-none focus:border-ide-accent transition-all text-sm pr-10"
+                placeholder="••••••••"
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           <button className="mt-2 flex items-center justify-center gap-2 bg-[#DC26268e] hover:bg-ide-accent text-white px-4 py-3 rounded transition-all font-medium text-sm">

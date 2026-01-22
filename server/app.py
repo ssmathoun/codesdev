@@ -52,10 +52,14 @@ CORS(app, supports_credentials=True, origins=[
 # Database Models
 class User(db.Model):
     __tablename__ = 'users'
+    __table_args__ = {'extend_existing': True} 
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    avatar_id = db.Column(db.String(50), nullable=True, default="default")
+    avatar_url = db.Column(db.Text, nullable=True) 
     projects = db.relationship('Project', backref='owner', lazy=True)
 
 class Project(db.Model):
@@ -84,11 +88,20 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
+    
     if User.query.filter_by(email=data['email']).first():
         return jsonify({"msg": "Registration failed: User already exists"}), 400
     
     hashed_pw = generate_password_hash(data['password'])
-    new_user = User(username=data['username'], email=data['email'], password_hash=hashed_pw)
+    
+    # Extract avatar data from the request
+    new_user = User(
+        username=data['username'],
+        email=data['email'],
+        password_hash=hashed_pw,
+        avatar_id=data.get('avatar_id', 'default'),
+        avatar_url=data.get('avatar_url') # Base64 string from custom upload
+    )
     
     db.session.add(new_user)
     db.session.commit()
@@ -174,7 +187,9 @@ def get_current_user():
     return jsonify({
         "id": user.id,
         "username": user.username,
-        "email": user.email
+        "email": user.email,
+        "avatar_id": user.avatar_id,
+        "avatar_url": user.avatar_url
     }), 200
 
 @app.route('/api/projects/<int:project_id>', methods=['PUT'])
@@ -210,28 +225,25 @@ def delete_project(project_id):
 def update_user_profile():
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
+    data = request.get_json()
+
+    # Identity updates
+    if 'username' in data: user.username = data['username']
+    if 'email' in data: user.email = data['email']
     
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"msg": "No data provided"}), 400
+    # Avatar logic
+    if 'avatar_id' in data: user.avatar_id = data['avatar_id']
+    if 'avatar_url' in data: user.avatar_url = data['avatar_url']
 
-    if 'username' in data:
-        user.username = data.get('username')
-    if 'email' in data:
-        user.email = data.get('email')
-
+    # Password update logic
     if data.get('new_password'):
-        # Only check password if the user actually sent a new one
-        if not check_password_hash(user.password_hash, data.get('old_password', '')):
-            return jsonify({"msg": "Current password incorrect"}), 400
+        if not data.get('old_password') or not check_password_hash(user.password_hash, data.get('old_password')):
+            return jsonify({"msg": "Current password required to set a new one"}), 400
+        
         user.password_hash = generate_password_hash(data['new_password'])
 
-    try:
-        db.session.commit()
-        return jsonify({"msg": "Profile updated successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"msg": "Database error"}), 500
+    db.session.commit()
+    return jsonify({"msg": "Profile updated successfully"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5001)

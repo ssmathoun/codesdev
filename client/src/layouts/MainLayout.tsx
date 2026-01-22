@@ -11,6 +11,12 @@ import OutputConsole from "../components/OutputConsole"
 import CommandPalette from "../components/CommandPallete";
 
 export default function MainLayout() {
+    const [currentUser, setCurrentUser] = useState<{ 
+        username: string; 
+        avatar_id: string; 
+        avatar_url?: string;
+    } | null>(null);
+
     const { projectId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
@@ -26,6 +32,21 @@ export default function MainLayout() {
         const match = document.cookie.match(/csrf_access_token=([^;]+)/);
         return match ? decodeURIComponent(match[1]) : "";
     };
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await fetch("http://localhost:5001/api/me", { credentials: "include" });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCurrentUser(data);
+                }
+            } catch (err) {
+                console.error("MainLayout: Identity fetch failed");
+            }
+        };
+        fetchUser();
+    }, []);
 
     useEffect(() => {
         const fetchProjectData = async () => {
@@ -702,6 +723,7 @@ export default function MainLayout() {
 
                 {/* Top Navbar */}
                 <Navbar 
+                    user={currentUser}
                     projectId={projectId}
                     projectName={projectName}
                     isSaving={isSaving} 

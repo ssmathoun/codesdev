@@ -2,9 +2,11 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Plus, Search, LayoutGrid, List, User, Share2, 
-  Folder, ChevronRight, HardDrive, Edit2, Trash2, Users, UserPlus, X 
+  Folder, ChevronRight, HardDrive, Edit2, Trash2, Users, UserPlus, X, 
+  LogOut
 } from "lucide-react";
 import Modal from "../components/Modal";
+import { AVATAR_MAP } from "../constants/avatars";
 import type { Category, Collaborator, ViewMode, ModalType } from "../types/types";
 
 // Helper to handle relative and absolute dating
@@ -23,6 +25,7 @@ const formatProjectDate = (dateInput: any, currentTime: number) => {
 export default function HomePage() {
   const navigate = useNavigate();
   const API_BASE = "http://localhost:5001/api";
+  const [user, setUser] = useState<any>(null);
   
   // Layout and Resizing State
   const [sidebarWidth, setSidebarWidth] = useState(240);
@@ -63,6 +66,21 @@ export default function HomePage() {
   }, [API_BASE]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/me`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+        }
+      } catch (err) {
+        console.error("Identity fetch failed:", err);
+      }
+    };
+    fetchUser();
+  }, [API_BASE]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -147,6 +165,19 @@ export default function HomePage() {
   }, [isResizing]);
   const handleMouseUp = useCallback(() => { setIsResizing(false); }, []);
 
+  const handleLogout = async () => {
+    try {
+        const res = await fetch(`${API_BASE}/logout`, {
+            method: "POST",
+            headers: { "X-CSRF-TOKEN": getCSRF() },
+            credentials: "include"
+        });
+        if (res.ok) navigate("/login", { replace: true });
+    } catch (err) {
+        console.error("Logout failed");
+    }
+  };
+
   useEffect(() => {
     if (isResizing) {
       window.addEventListener("mousemove", handleMouseMove);
@@ -173,11 +204,58 @@ export default function HomePage() {
             <input type="text" placeholder="Search projects..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#1e1e1e33] border border-transparent rounded-md py-1.5 pl-9 pr-4 text-sm outline-none text-white focus:bg-black/20 focus:border-white/10 transition-all placeholder:text-white/40" />
           </div>
         </div>
-        <div className="flex-1 flex justify-end gap-3">
-          <button onClick={() => openModal('create')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1 rounded-md text-[13px] border border-white/5 font-medium transition-all">
+        {/* --- Navbar Right Section --- */}
+        <div className="flex-1 flex justify-end gap-3 items-center">
+          {/* New Project Button */}
+          <button onClick={() => openModal('create')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md text-[13px] border border-white/5 font-medium transition-all">
             <Plus size={16} strokeWidth={2.5} /><span>New Project</span>
           </button>
-          <div onClick={() => navigate("/profile")} className="w-8 h-8 rounded-full bg-[#D1D5DB] flex items-center justify-center text-[#4B5563] cursor-pointer shadow-sm"><User size={20} /></div>
+
+          {/* Profile Avatar with Hover Menu */}
+          <div className="relative group px-1">
+            {/* Avatar Trigger */}
+            <div 
+                className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer overflow-hidden transition-all group-hover:ring-2 group-hover:ring-white/40
+                    ${user?.avatar_url 
+                        ? 'bg-transparent border-none' 
+                        : 'bg-zinc-900 border border-black/20'
+                    }`}
+            >
+                {user?.avatar_url ? (
+                    <img src={user.avatar_url} className="w-full h-full object-cover" alt="Profile" />
+                ) : user?.avatar_id ? (
+                    <img src={AVATAR_MAP[user.avatar_id]} className="w-full h-full object-cover" />
+                ) : (
+                    <span className="text-[12px] font-bold text-zinc-500">
+                      {user?.username?.[0].toUpperCase()}
+                    </span>
+                )}
+            </div>
+
+            {/* Hover Dropdown */}
+            <div className="absolute right-0 top-full pt-2 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
+                <div className="w-48 bg-[#121212] border border-white/10 rounded-lg shadow-2xl overflow-hidden py-1">
+                    <div className="px-4 py-2 border-b border-white/5 mb-1">
+                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Username</p>
+                        <p className="text-sm text-white truncate">{user?.username}</p>
+                    </div>
+
+                    <button 
+                        onClick={() => navigate("/profile")}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
+                    >
+                        <User size={14} className="text-zinc-500" /> View Profile
+                    </button>
+
+                    <button 
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                        <LogOut size={14} /> Log Out
+                    </button>
+                </div>
+            </div>
+          </div>
         </div>
       </nav>
 
@@ -344,9 +422,18 @@ function SidebarBtn({ icon, label, active, onClick }: any) {
 }
 
 function Avatar({ collaborator, size = "md" }: any) {
-    const sizeClasses = size === "sm" ? "w-5 h-5" : "w-8 h-8";
-    if (!collaborator) return <div className={`${sizeClasses} rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 font-bold`}>?</div>;
-    return <div className={`${sizeClasses} rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 font-bold text-xs`}>{collaborator.name ? collaborator.name[0] : "U"}</div>;
+  const sizeClasses = size === "sm" ? "w-5 h-5" : "w-8 h-8";
+  const avatarSrc = collaborator?.avatar_url || (collaborator?.avatar_id ? AVATAR_MAP[collaborator.avatar_id] : null);
+
+  return (
+    <div className={`${sizeClasses} rounded-full bg-zinc-800 border border-white/5 flex items-center justify-center text-zinc-400 font-bold text-xs overflow-hidden`}>
+        {avatarSrc ? (
+          <img src={avatarSrc} className="w-full h-full object-cover" />
+        ) : (
+          <span>{collaborator?.name ? collaborator.name[0].toUpperCase() : "?"}</span>
+        )}
+    </div>
+  );
 }
 
 function AvatarStack({ collaborators, onClick }: { collaborators: any[], onClick: (e: React.MouseEvent<HTMLDivElement>) => void }) {

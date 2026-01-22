@@ -70,6 +70,11 @@ export interface AuthContextType {
 export type ModalType = 'create' | 'rename' | 'delete' | 'share' | null;
 
 export interface NavbarProps {
+    user: { 
+        username: string; 
+        avatar_id: string; 
+        avatar_url?: string; 
+    } | null;
     projectId: string | undefined;
     projectName: string;
     isSaving: boolean;

@@ -8,18 +8,26 @@ function getCookie(name: string) {
 }
 
 export const authService = {
-  async register(userData: any) {
-    const response = await fetch(`${API_URL}/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData),
-      credentials: 'include',
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.msg || 'Registration failed');
+  async register (userData: any) {
+    try {
+      const response = await fetch('http://localhost:5001/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.msg || 'Registration failed');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("AuthService Register Error:", error);
+      throw error;
     }
-    return response.json();
   },
 
   async login(credentials: any) {
