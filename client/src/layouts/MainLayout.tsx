@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import debounce from "lodash.debounce";
 import CodeEditor from "../components/CodeEditor";
 import FileSidebar from "../components/FileSidebar";
@@ -10,109 +10,137 @@ import Navbar from "../components/Navbar";
 import OutputConsole from "../components/OutputConsole"
 import CommandPalette from "../components/CommandPallete";
 
-const dirData: folderStructureData[] = [
-    { id: 1, name: 'index.tsx', type: 'file', content: 'index.tsx'},
-    { id: 2, name: 'App.tsx', type: 'file', content: 'App.tsx'},
-    { id: 3, name: 'components', type: 'folder', children: [
-        { id: 4, name: 'headerFolder', type: 'folder', parent: 3, children: [
-            { id: 9, name: 'Header.tsx', type: 'file', parent: 4,  content: 'Header.tsx'},
-            { id: 10, name: 'Logo.tsx', type: 'file', parent: 4, content: 'Logo.tsx'},
-        ] },
-        { id: 5, name: 'Footer.tsx', type: 'file', parent: 3, content: 'Footer.tsx'},
-    ]},
-    { id: 6, name: 'styles', type: 'folder', children: [
-        { id: 7, name: 'main.css', type: 'file', parent: 6, content: 'main.css' },
-        { id: 8, name: 'theme.css', type: 'file', parent: 6, content: 'theme.css' },
-    ]},
-]
-
 export default function MainLayout() {
     const { projectId } = useParams();
     const location = useLocation();
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
+    const [data, setData] = useState<folderStructureData[]>([]);
 
     const [projectName, setProjectName] = useState<string>(
         location.state?.projectName || "Loading Project..."
     );
 
+    // Helper for CSRF
+    const getCSRF = () => {
+        const match = document.cookie.match(/csrf_access_token=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : "";
+    };
+
     useEffect(() => {
         const fetchProjectData = async () => {
             setIsLoading(true);
             try {
-                if (!location.state?.projectName) {
-                    setProjectName(`Project: ${projectId}`); 
-                }
+                const res = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
+                    credentials: "include"
+                });
                 
-                await new Promise(res => setTimeout(res, 500));
-                setData(dirData); 
+                if (res.ok) {
+                    const project = await res.json();
+                    setData(project.file_tree || []);
+                    setProjectName(project.name);
+                } else {
+                    navigate("/home"); // Redirect if project not found
+                }
             } catch (error) {
-                setLogs(prev => [...prev, "Error: Failed to join project room."]);
+                setLogs(prev => [...prev, "Error: Failed to connect to persistence layer."]);
             } finally {
                 setIsLoading(false);
             }
         };
         fetchProjectData();
-    }, [projectId, location.state]);
+    }, [projectId, navigate]);
 
-    const [data, setData] = useState<folderStructureData[]>(dirData);
-    const addItemToData = (newItem: folderStructureData) : void => {
-        const parentId = newItem.parent ?? null;
-        
-        if (parentId === null) {
-            setData(prevData => [...prevData, newItem]);
-        }
-        else {
-            const addItemRecusivley = (items: folderStructureData[]): folderStructureData[] => {
-                return items.map(item => {
-                    if (item.id === parentId && item.type === "folder") {
-                        const updatedChildren = item.children ? [...item.children, newItem] : [newItem];
-                        return { ...item, children: updatedChildren };
-                    }
-                    else {
-                        if (item.children) {
-                            return { ...item, children: addItemRecusivley(item.children) };
+    const saveToBackend = useCallback(
+        debounce(async (updatedTree: folderStructureData[]) => {
+            setIsSaving(true);
+            try {
+                const res = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': getCSRF() // Security Check
+                    },
+                    body: JSON.stringify({ file_tree: updatedTree }),
+                    credentials: 'include'
+                });
+    
+                if (res.ok) {
+                    setLogs(prev => [...prev, `Sync complete: ${new Date().toLocaleTimeString()}`]);
+                }
+            } catch (err) {
+                setLogs(prev => [...prev, "Error: Auto-save failed. Check connection."]);
+            } finally {
+                setIsSaving(false);
+            }
+        }, 2000), // 2-second debounce
+        [projectId]
+    );
+
+    const updateDataAndSync = (updateFn: (prev: folderStructureData[]) => folderStructureData[]) => {
+        setData(prevData => {
+            const nextData = updateFn(prevData);
+            saveToBackend(nextData);
+            return nextData;
+        });
+    };
+    
+    const addItemToData = (newItem: folderStructureData): void => {
+        updateDataAndSync((prevData) => {
+            const parentId = newItem.parent ?? null;
+            if (parentId === null) {
+                return [...prevData, newItem];
+            } else {
+                const addItemRecursively = (items: folderStructureData[]): folderStructureData[] => {
+                    return items.map(item => {
+                        if (item.id === parentId && item.type === "folder") {
+                            const updatedChildren = item.children ? [...item.children, newItem] : [newItem];
+                            return { ...item, children: updatedChildren };
+                        } else if (item.children) {
+                            return { ...item, children: addItemRecursively(item.children) };
                         }
                         return item;
-                    }
-                })
-            };
-            setData(prevData => addItemRecusivley(prevData));
-        }
+                    });
+                };
+                return addItemRecursively(prevData);
+            }
+        });
     };
 
     const [deleteItemId, setDeleteItemId] = useState<number | null>(null);
 
-    const deleteItemFromData = (itemToDelete: folderStructureData) : void => {
-        const deleteItemRecursively = (items: folderStructureData[]): folderStructureData[] => {
-            return items.filter(item => item.id !== itemToDelete.id).map(item => {
-                if (item.children) {
-                    return { ...item, children: deleteItemRecursively(item.children) };
-                }
-                return item;
-            });
-        }
-        setData(prevData => deleteItemRecursively(prevData));
+    const deleteItemFromData = (itemToDelete: folderStructureData): void => {
+        updateDataAndSync((prevData) => {
+            const deleteItemRecursively = (items: folderStructureData[]): folderStructureData[] => {
+                return items.filter(item => item.id !== itemToDelete.id).map(item => {
+                    if (item.children) {
+                        return { ...item, children: deleteItemRecursively(item.children) };
+                    }
+                    return item;
+                });
+            };
+            return deleteItemRecursively(prevData);
+        });
     };
 
     const [isSaving, setIsSaving] = useState(false);
 
-    const updateFileContent = (id: number, newContent: string) : void => {
-        const updateContentRecursively = (items: folderStructureData[]): folderStructureData[] => {
-            return items.map(item => {
-                if (item.id === id && item.type === "file") {
-                    return { ...item, content: newContent };
-                }
-                else {
-                    if (item.children) {
+    const updateFileContent = (id: number, newContent: string): void => {
+        updateDataAndSync((prevData) => {
+            const updateContentRecursively = (items: folderStructureData[]): folderStructureData[] => {
+                return items.map(item => {
+                    if (item.id === id && item.type === "file") {
+                        return { ...item, content: newContent };
+                    } else if (item.children) {
                         return { ...item, children: updateContentRecursively(item.children) };
                     }
                     return item;
-                }
-            })
-        }
-        setData(prevData => updateContentRecursively(prevData) );
+                });
+            };
+            return updateContentRecursively(prevData);
+        });
         setIsSaving(false);
-    }
+    };
     
     const [sidebarWidth, setSidebarWidth] = useState(260); // Tracks FileSidebar Width
     const [openedId, setOpenedId] = useState<number | null>(null); // Tracks Open File/Folder IDs
@@ -212,12 +240,15 @@ export default function MainLayout() {
     }, [debouncedUpdate]);
 
     const isNameDuplicate = (name: string, parentId: number | null, excludeId?: number): boolean => {
+        const trimmedName = name.trim().toLowerCase();
+        if (!trimmedName) return false;
+    
         const siblings = parentId
             ? itemLookup.get(parentId)?.children || []
             : data;
-        
-        return siblings.some(item =>
-            item.name.toLowerCase() === name.trim().toLowerCase() &&
+    
+        return siblings.some(item => 
+            item.name.toLowerCase() === trimmedName && 
             item.id !== excludeId
         );
     };
@@ -227,29 +258,45 @@ export default function MainLayout() {
     const addNewItem = (itemName: string) => {
         const trimmedName = itemName.trim();
         if (trimmedName === "" || newItemType === null) return;
-
+    
         if (isNameDuplicate(trimmedName, pendingParentId)) {
-            //Add
+            setModalError(`A ${newItemType} with this name already exists in this directory.`);
+            return; 
         }
+    
         const newItemId = Date.now();
-
-        addItemToData({
+        const newItem: folderStructureData = {
             id: newItemId,
-            name: itemName,
+            name: trimmedName,
             type: newItemType!,
             parent: pendingParentId,
             content: newItemType === "file" ? "" : undefined,
             children: newItemType === "folder" ? [] : undefined,
-        });
+        };
 
+        updateDataAndSync((prevData) => {
+            if (pendingParentId === null) {
+                return [...prevData, newItem];
+            }
+            
+            const addItemRecursively = (items: folderStructureData[]): folderStructureData[] => {
+                return items.map(item => {
+                    if (item.id === pendingParentId && item.type === "folder") {
+                        return { ...item, children: [...(item.children || []), newItem] };
+                    } else if (item.children) {
+                        return { ...item, children: addItemRecursively(item.children) };
+                    }
+                    return item;
+                });
+            };
+            return addItemRecursively(prevData);
+        });
+    
         if (pendingParentId !== null) {
             setExpandedIds(prev => prev.includes(pendingParentId!) ? prev : [...prev, pendingParentId!]);
         }
-
-        if (newItemType === "file") {
-            handleOpenedFileTabsId(newItemId);
-        }
-
+        if (newItemType === "file") handleOpenedFileTabsId(newItemId);
+        
         setNewItemType(null);
         setOpenedId(newItemId);
         setNewItemName("");
@@ -259,35 +306,33 @@ export default function MainLayout() {
 
     const renameItem = (itemName: string) => {
         const trimmedName = itemName.trim();
-        if (trimmedName === "" || newItemType === null) return;
-
+        if (trimmedName === "" || deleteItemId === null) return;
+    
         const itemToRename = itemLookup.get(deleteItemId!);
         const parentId = itemToRename?.parent ?? null;
-
+    
         if (isNameDuplicate(trimmedName, parentId, deleteItemId!)) {
-            //Add
+            setModalError("Another item in this folder already has that name.");
+            return;
         }
-
-
+    
         const renameRecursively = (items: folderStructureData[]): folderStructureData[] => {
             return items.map(item => {
                 if (item.id === deleteItemId) {
-                    return { ...item, name: itemName };
+                    return { ...item, name: trimmedName };
+                } else if (item.children) {
+                    return { ...item, children: renameRecursively(item.children) };
                 }
-                else {
-                    if (item.children) {
-                        return { ...item, children: renameRecursively(item.children) };
-                    }
-                    return item;
-                }
+                return item;
             });
-
         };
-
-        setData(prevData => renameRecursively(prevData));
+    
+        updateDataAndSync((prevData) => renameRecursively(prevData));
+    
         setNewItemType(null);
         setNewItemName("");
         setIsRenameModalOpen(false);
+        setDeleteItemId(null);
     };
 
     const deleteItem = (deleteItemId: number) => {
@@ -371,7 +416,7 @@ export default function MainLayout() {
         }
 
         setMenuPos({ x, y });
-        setPendingParentId(item.type === "folder" ? item.id : null);
+        setPendingParentId(item.type === "folder" ? item.id : (item.parent ?? null));
         setDeleteItemId(item.id);
     };
 

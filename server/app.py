@@ -133,6 +133,21 @@ def get_projects():
         "created_at": p.created_at.isoformat() + 'Z'
     } for p in user_projects]), 200
 
+@app.route('/api/projects/<int:project_id>', methods=['GET']) # MUST include GET
+@jwt_required()
+def get_single_project(project_id):
+    current_user_id = get_jwt_identity()
+    
+    # Ensure the project belongs to the logged-in user
+    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    
+    return jsonify({
+        "id": project.id,
+        "name": project.name,
+        "file_tree": project.file_tree,
+        "created_at": project.created_at.isoformat() + 'Z' if project.created_at else None
+    }), 200
+
 @app.route('/api/projects', methods=['POST'])
 @jwt_required()
 def create_project():
@@ -170,10 +185,16 @@ def update_project(project_id):
     project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
     
     data = request.get_json()
-    project.name = data.get('name', project.name)
     
+    # Update the JSONB blob
+    if 'file_tree' in data:
+        project.file_tree = data['file_tree']
+    
+    if 'name' in data:
+        project.name = data['name']
+        
     db.session.commit()
-    return jsonify({"id": project.id, "name": project.name, "file_tree": project.file_tree}), 200
+    return jsonify({"msg": "Persistence updated"}), 200
 
 @app.route('/api/projects/<int:project_id>', methods=['DELETE'])
 @jwt_required()
