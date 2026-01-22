@@ -1,56 +1,101 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { authService } from "../services/auth";
-
-interface AuthContextType {
-  user: any;
-  loading: boolean;
-  login: (credentials: any) => Promise<void>;
-  logout: () => Promise<void>;
-}
+import type { AuthContextType } from "../types/types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const ME_ENDPOINT = "http://localhost:5001/api/me";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Silent Auth Check on mount/refresh
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const res = await fetch("http://localhost:5001/api/me", { credentials: "include" });
-        if (res.ok) {
-          const userData = await res.json();
-          setUser(userData);
+  // Helper to extract CSRF token from the cookie Flask just sent
+  const getCookie = (name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+  };
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch(ME_ENDPOINT, { 
+        method: 'GET',
+        credentials: "include", // Sends the access_token_cookie
+        headers: {
+          // Sends the CSRF token back to Flask
+          "X-CSRF-TOKEN": getCookie('csrf_access_token') || "" 
         }
-      } catch (err) {
-        console.error("Auth session expired");
-      } finally {
-        setLoading(false);
+      });
+  
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+        return true;
       }
-    };
-    initAuth();
+      return false;
+    } catch (err) {
+      return false;
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const login = async (credentials: any) => {
-    const data = await authService.login(credentials);
-    if (data.username) {
-      // Re-fetch user data to ensure CSRF cookies are synced
-      const res = await fetch("http://localhost:5001/api/me", { credentials: "include" });
-      const userData = await res.json();
-      setUser(userData);
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const login = async (credentials: any): Promise<boolean> => {
+    try {
+      // Initial Authentication
+      await authService.login(credentials);
+      
+      // Pause: Let the browser update the "Cookie Jar"
+      await new Promise(resolve => setTimeout(resolve, 150));
+  
+      // Reliable CSRF Extraction
+      const getCSRF = () => {
+        const match = document.cookie.match(/csrf_access_token=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : null;
+      };
+  
+      const token = getCSRF();
+  
+      // Identity Handshake
+      const res = await fetch(ME_ENDPOINT, { 
+        method: 'GET',
+        credentials: 'include', 
+        headers: {
+          "X-CSRF-TOKEN": token || ""
+        }
+      });
+  
+      if (res.ok) {
+        const userData = await res.json();
+        setUser(userData);
+        setLoading(false); // Open the ProtectedRoute gate
+        return true;
+      }
+      
+      return false;
+    } catch (err) {
+      console.error("Redirection Blocked: Handshake Failed", err);
+      return false;
     }
   };
 
   const logout = async () => {
-    await authService.logout();
-    setUser(null);
-    window.location.href = "/"; // Hard redirect to clear state
+    try {
+      await authService.logout();
+    } finally {
+      setUser(null);
+      window.location.href = "/"; 
+    }
   };
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

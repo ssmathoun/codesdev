@@ -51,3 +51,20 @@ export interface Collaborator {
   name: string;
   avatarUrl?: string;
 }
+
+export interface Project {
+    id: string;
+    name: string;
+    file_tree: any[];
+    owner_name?: string;
+    created_at?: string;
+}
+
+export interface AuthContextType {
+  user: any;
+  loading: boolean;
+  login: (credentials: any) => Promise<boolean>;
+  logout: () => Promise<void>;
+}
+
+export type ModalType = 'create' | 'rename' | 'delete' | 'share' | null;

@@ -11,6 +11,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.dialects.postgresql import JSONB
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load Environment Variables
 load_dotenv()
@@ -29,7 +30,13 @@ app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
 app.config['JWT_REFRESH_COOKIE_PATH'] = '/api/token/refresh'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # Enable CSRF protection
 app.config['JWT_COOKIE_SECURE'] = False       # Set to True in Production (HTTPS)
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
+app.config['JWT_COOKIE_HTTPONLY'] = False  # Access token stays secure
+app.config['JWT_CSRF_CHECK_FORM'] = False # We use headers, not forms
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=2)
+app.config['JWT_CSRF_COOKIE_HTTPONLY'] = False # This allows document.cookie to see it
+app.config['JWT_ACCESS_CSRF_HEADER_NAME'] = "X-CSRF-TOKEN"
+app.config['JWT_CSRF_IN_COOKIES'] = True
 
 # Initialize Extensions
 db = SQLAlchemy(app)
@@ -37,7 +44,11 @@ migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
 # Configure CORS to allow cookies from the React Spoke
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+CORS(app, supports_credentials=True, origins=[
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://0.0.0.0:5173"
+])
 
 # Database Models
 class User(db.Model):
@@ -55,6 +66,7 @@ class Project(db.Model):
     # JSONB for high-performance file tree persistence
     file_tree = db.Column(JSONB, nullable=False, default=lambda: [])
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class TokenBlocklist(db.Model):
     __tablename__ = 'token_blocklist'
@@ -117,7 +129,8 @@ def get_projects():
     return jsonify([{
         "id": p.id, 
         "name": p.name, 
-        "file_tree": p.file_tree
+        "file_tree": p.file_tree,
+        "created_at": p.created_at.isoformat() + 'Z'
     } for p in user_projects]), 200
 
 @app.route('/api/projects', methods=['POST'])
@@ -134,7 +147,7 @@ def create_project():
     
     db.session.add(new_project)
     db.session.commit()
-    return jsonify({"id": new_project.id, "name": new_project.name}), 201
+    return jsonify({"id": new_project.id, "name": new_project.name, "created_at": new_project.created_at.isoformat() + 'Z'}), 201
 
 @app.route('/api/me', methods=['GET'])
 @jwt_required()
@@ -150,5 +163,27 @@ def get_current_user():
         "email": user.email
     }), 200
 
+@app.route('/api/projects/<int:project_id>', methods=['PUT'])
+@jwt_required()
+def update_project(project_id):
+    current_user_id = get_jwt_identity()
+    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    
+    data = request.get_json()
+    project.name = data.get('name', project.name)
+    
+    db.session.commit()
+    return jsonify({"id": project.id, "name": project.name, "file_tree": project.file_tree}), 200
+
+@app.route('/api/projects/<int:project_id>', methods=['DELETE'])
+@jwt_required()
+def delete_project(project_id):
+    current_user_id = get_jwt_identity()
+    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    
+    db.session.delete(project)
+    db.session.commit()
+    return jsonify({"msg": "Project deleted"}), 200
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, host='127.0.0.1', port=5001)

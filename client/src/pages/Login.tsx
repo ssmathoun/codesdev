@@ -2,21 +2,32 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { LogIn, ShieldCheck } from "lucide-react";
 import { authService } from "../services/auth";
+import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+  
     try {
-      const data = await authService.login(formData);
-      if (data.access_token) {
-        localStorage.setItem("token", data.access_token);
-        navigate("/home");
+      const isSuccess = await login(formData);
+      
+      if (isSuccess) {
+        setTimeout(() => {
+          navigate("/home", { replace: true });
+        }, 100);
+      } else {
+        alert("Verification failed. Please try again.");
       }
     } catch (err) {
-      console.error("Auth failed:", err);
+      alert("System error. Check connection.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
