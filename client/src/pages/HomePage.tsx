@@ -162,7 +162,7 @@ export default function HomePage() {
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <div className={`fixed inset-0 h-screen w-screen overflow-hidden grid grid-rows-[48px_1fr] bg-[#050505] text-white font-sans ${isResizing ? 'select-none' : ''}`}>
+    <div className={`fixed inset-0 h-screen w-screen overflow-hidden grid grid-rows-[48px_1fr] bg-[#050505] text-white font-sans selection:bg-[#dc2626] ${isResizing ? 'select-none' : ''}`}>
       
       {/* Navbar */}
       <nav className="flex items-center justify-between px-4 w-full h-12 bg-[#dc2626] border-b border-black/10 z-50">
@@ -177,7 +177,7 @@ export default function HomePage() {
           <button onClick={() => openModal('create')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1 rounded-md text-[13px] border border-white/5 font-medium transition-all">
             <Plus size={16} strokeWidth={2.5} /><span>New Project</span>
           </button>
-          <div className="w-8 h-8 rounded-full bg-[#D1D5DB] flex items-center justify-center text-[#4B5563] cursor-pointer shadow-sm"><User size={20} /></div>
+          <div onClick={() => navigate("/profile")} className="w-8 h-8 rounded-full bg-[#D1D5DB] flex items-center justify-center text-[#4B5563] cursor-pointer shadow-sm"><User size={20} /></div>
         </div>
       </nav>
 

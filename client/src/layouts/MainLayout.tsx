@@ -702,6 +702,8 @@ export default function MainLayout() {
 
                 {/* Top Navbar */}
                 <Navbar 
+                    projectId={projectId}
+                    projectName={projectName}
                     isSaving={isSaving} 
                     setIsCommandPaletteOpen={setIsCommandPaletteOpen}
                     isSidebarVisible={isSidebarVisible} 

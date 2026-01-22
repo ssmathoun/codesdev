@@ -6,6 +6,7 @@ import HomePage from './pages/HomePage';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   const router = createBrowserRouter([
@@ -25,6 +26,14 @@ function App() {
       element: (
         <ProtectedRoute>
           <MainLayout />
+        </ProtectedRoute>
+      ),
+    },
+    {
+      path: "/profile",
+      element: (
+        <ProtectedRoute>
+          <ProfilePage />
         </ProtectedRoute>
       ),
     },

@@ -32,7 +32,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-linear-to-b from-ide-bg via-[#3a0505] to-ide-bg text-white font-sans flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen w-full bg-linear-to-b from-ide-bg via-[#3a0505] to-ide-bg text-white font-sans flex flex-col items-center justify-center p-6 selection:bg-[#dc2626]">
       
       <div className="w-full max-w-100 bg-ide-bg border border-white/5 p-8 rounded-xl shadow-2xl">
         <div className="mb-10 text-center">

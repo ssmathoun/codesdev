@@ -1,6 +1,20 @@
-import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus} from "lucide-react";
+import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import type { NavbarProps } from "../types/types";
 
-export default function Navbar({isSaving, setIsCommandPaletteOpen, isSidebarVisible, setIsSidebarVisible, isConsoleOpen, setIsConsoleOpen}: {isSaving: boolean, setIsCommandPaletteOpen: (prev: boolean) => void, isSidebarVisible: boolean, setIsSidebarVisible: (prev: boolean) => void, isConsoleOpen: boolean, setIsConsoleOpen: (prev: boolean) => void}) {
+export default function Navbar({ 
+    projectId, 
+    projectName, 
+    isSaving, 
+    setIsCommandPaletteOpen, 
+    isSidebarVisible, 
+    setIsSidebarVisible, 
+    isConsoleOpen, 
+    setIsConsoleOpen 
+}: NavbarProps) {
+    
+    const navigate = useNavigate();
+
     return (
         <nav className="flex items-center justify-between px-4 w-full h-full bg-ide-accent text-white select-none">
 
@@ -61,10 +75,13 @@ export default function Navbar({isSaving, setIsCommandPaletteOpen, isSidebarVisi
                     </div>
                 </div>
 
-                <div className="w-8 h-8 rounded-full bg-[#D1D5DB] flex items-center justify-center text-[#4B5563]">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                    </svg>
+                <div 
+                    onClick={() => navigate("/profile", { 
+                        state: { from: projectId, name: projectName } 
+                    })}
+                    className="w-7 h-7 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center cursor-pointer transition-all border border-white/10"
+                >
+                    <User size={16} />
                 </div>
         </div>
         </nav>

@@ -46,9 +46,8 @@ jwt = JWTManager(app)
 # Configure CORS to allow cookies from the React Spoke
 CORS(app, supports_credentials=True, origins=[
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://0.0.0.0:5173"
-])
+    "http://127.0.0.1:5173"
+], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Database Models
 class User(db.Model):
@@ -205,6 +204,34 @@ def delete_project(project_id):
     db.session.delete(project)
     db.session.commit()
     return jsonify({"msg": "Project deleted"}), 200
+
+@app.route('/api/user/update', methods=['PUT'])
+@jwt_required()
+def update_user_profile():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"msg": "No data provided"}), 400
+
+    if 'username' in data:
+        user.username = data.get('username')
+    if 'email' in data:
+        user.email = data.get('email')
+
+    if data.get('new_password'):
+        # Only check password if the user actually sent a new one
+        if not check_password_hash(user.password_hash, data.get('old_password', '')):
+            return jsonify({"msg": "Current password incorrect"}), 400
+        user.password_hash = generate_password_hash(data['new_password'])
+
+    try:
+        db.session.commit()
+        return jsonify({"msg": "Profile updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"msg": "Database error"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5001)

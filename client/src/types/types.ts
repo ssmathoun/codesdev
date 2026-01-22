@@ -68,3 +68,14 @@ export interface AuthContextType {
 }
 
 export type ModalType = 'create' | 'rename' | 'delete' | 'share' | null;
+
+export interface NavbarProps {
+    projectId: string | undefined;
+    projectName: string;
+    isSaving: boolean;
+    setIsCommandPaletteOpen: (val: boolean) => void;
+    isSidebarVisible: boolean;
+    setIsSidebarVisible: (val: boolean) => void;
+    isConsoleOpen: boolean;
+    setIsConsoleOpen: (val: boolean) => void;
+}
