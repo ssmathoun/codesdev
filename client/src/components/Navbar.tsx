@@ -1,5 +1,5 @@
 import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, LogOut, Settings, Save, History} from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { NavbarProps } from "../types/types";
 import { AVATAR_MAP } from "../constants/avatars";
 
@@ -47,7 +47,12 @@ export default function Navbar({
         <nav className="flex items-center justify-between px-4 w-full h-full bg-ide-accent text-white select-none">
 
             <div className="flex items-center gap-4 flex-1 justify-start">
-                <h1 className="tracking-tight">codesdev</h1>
+                <Link 
+                    to="/home" 
+                    className="flex items-center gap-2 group transition-all active:scale-95"
+                >
+                    <h1 className="tracking-tight">codesdev</h1>
+                </Link>
 
                 {isSaving ?
                 <div className="flex items-center gap-2 opacity-100 cursor-pointer transition-opacity ml-4">

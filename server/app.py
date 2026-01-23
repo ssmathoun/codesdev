@@ -276,6 +276,16 @@ def save_version(project_id):
         label=data.get('label')
     )
     db.session.add(new_version)
+
+    from datetime import datetime, timedelta
+    cutoff = datetime.utcnow() - timedelta(hours=24)
+    
+    Version.query.filter(
+        Version.project_id == project_id,
+        Version.label == None,
+        Version.created_at < cutoff
+    ).delete()
+    
     db.session.commit()
     return jsonify({"msg": "Checkpoint created", "id": new_version.id}), 201
 

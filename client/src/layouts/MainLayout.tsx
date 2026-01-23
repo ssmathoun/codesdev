@@ -1026,7 +1026,7 @@ export default function MainLayout() {
                         {/* Shared Resize Handle */}
                         <div 
                             onMouseDown={handleMouseDown} 
-                            className={`absolute right-0 top-0 w-1.5 h-full cursor-col-resize z-50
+                            className={`absolute right-0 top-0 w-1 h-full cursor-col-resize z-50
                                 hover:bg-ide-accent/50 transition-colors 
                                 ${isResizing ? 'bg-ide-accent w-1' : ''}`} 
                         >

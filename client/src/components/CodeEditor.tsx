@@ -44,12 +44,28 @@ export default function CodeEditor({
   const activeFile = openedId !== null ? itemLookup.get(openedId) : null;
 
   const getLanguage = (fileName?: string) => {
-    if (!fileName) return 'javascript';
-    if (fileName.endsWith('.tsx') || fileName.endsWith('.ts')) return 'typescript';
-    if (fileName.endsWith('.css')) return 'css';
-    if (fileName.endsWith('.html')) return 'html';
-    return 'javascript';
-  };
+    if (!fileName) return 'plaintext';
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    
+    const languageMap: Record<string, string> = {
+        'js': 'javascript',
+        'jsx': 'javascript',
+        'ts': 'typescript',
+        'tsx': 'typescript',
+        'py': 'python',
+        'html': 'html',
+        'css': 'css',
+        'json': 'json',
+        'md': 'markdown',
+        'c': 'c',
+        'cpp': 'cpp',
+        'java': 'java',
+        'rb': 'ruby',
+        'go': 'go'
+    };
+
+    return languageMap[ext!] || 'plaintext';
+};
   
   const virtualPath =
     activeFile && openedId

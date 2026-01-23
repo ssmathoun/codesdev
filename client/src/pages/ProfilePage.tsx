@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, ChevronLeft, ShieldCheck, Camera, Save, User as UserIcon, ArrowLeft } from "lucide-react";
 import { AVATAR_MAP } from "../constants/avatars";
 
@@ -179,7 +179,12 @@ export default function ProfilePage() {
 
                 {/* Right Side: Brand */}
                 <div className="flex items-center gap-3">
-                    <span className="tracking-tight text-white font-normal">codesdev</span>
+                <Link 
+                    to="/home" 
+                    className="flex items-center gap-2 group transition-all active:scale-95"
+                >
+                    <h1 className="tracking-tight">codesdev</h1>
+                </Link>
                 </div>
             </nav>
 
