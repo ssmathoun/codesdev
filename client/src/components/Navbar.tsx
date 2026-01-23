@@ -1,4 +1,4 @@
-import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, Settings, LogOut} from "lucide-react";
+import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, LogOut, Settings, Save, History} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { NavbarProps } from "../types/types";
 import { AVATAR_MAP } from "../constants/avatars";
@@ -12,7 +12,8 @@ export default function Navbar({
     isSidebarVisible, 
     setIsSidebarVisible, 
     isConsoleOpen, 
-    setIsConsoleOpen 
+    setIsConsoleOpen,
+    onCheckpoint 
 }: NavbarProps) {
 
     const navigate = useNavigate();
@@ -89,8 +90,20 @@ export default function Navbar({
 
             <div className="flex items-center gap-4 flex-1 justify-end">
                 {/* Action Icons */}
-                <div className="flex items-center gap-4">
-                    <Play size={20} fill="currentColor" className="hover:scale-110 cursor-pointer transition-transform" />
+                <div className="flex items-center gap-4 mr-2">
+                    {/* Opens the version naming modal */}
+                    <button 
+                        onClick={onCheckpoint}
+                        title="Create Checkpoint (Snapshot)"
+                        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white/90 border border-white/5 transition-all active:scale-95"
+                    >
+                        <Save size={16} strokeWidth={2} />
+                        <span className="hidden lg:block">Checkpoint</span>
+                    </button>
+
+                    <div className="h-4 w-px bg-white/10 mx-1" />
+
+                    <Play size={20} fill="currentColor" className="hover:scale-110 cursor-pointer transition-transform text-white/90" />
                     <Share size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
                     <UserPlus size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
                 </div>
@@ -128,7 +141,7 @@ export default function Navbar({
                                 onClick={() => navigate("/profile", { state: { from: projectId, name: projectName } })}
                                 className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-zinc-300 hover:bg-white/5 hover:text-white transition-colors"
                             >
-                                <Settings size={14} className="text-zinc-500" /> Account Settings
+                                <User size={14} className="text-zinc-500" /> View Profile
                             </button>
 
                             <button 

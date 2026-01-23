@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Users, GitBranch, Terminal, ShieldCheck, Cpu, Globe, Github } from "lucide-react";
+import { Users, GitCommitVertical, Terminal, ShieldCheck, Cpu, Globe, Github } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function LandingPage() {
@@ -60,9 +60,9 @@ export default function LandingPage() {
               description="Code together with your team in real-time with zero latency."
             />
             <FeatureCard 
-              icon={<GitBranch size={56} />} 
+              icon={<GitCommitVertical size={56} />} 
               title="Visual Version Control" 
-              description="Track changes and manage branches with an intuitive visual UI."
+              description="Track changes and manage version history with an intuitive visual UI."
             />
             <FeatureCard 
               icon={<Terminal size={56} />} 

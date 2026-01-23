@@ -9,6 +9,8 @@ import Modal from "../components/Modal";
 import Navbar from "../components/Navbar";
 import OutputConsole from "../components/OutputConsole"
 import CommandPalette from "../components/CommandPallete";
+import { HardDrive, History } from "lucide-react";
+import VersionHistory from "../components/VersionHistory";
 
 export default function MainLayout() {
     const [currentUser, setCurrentUser] = useState<{ 
@@ -22,6 +24,16 @@ export default function MainLayout() {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [data, setData] = useState<folderStructureData[]>([]);
+    const [activeTab, setActiveTab] = useState<"files" | "history">("files");
+    const [versions, setVersions] = useState<any[]>([]);
+    const [lastSnapshotTime, setLastSnapshotTime] = useState(Date.now());
+    const SNAPSHOT_INTERVAL = 10 * 60 * 1000; // 10 Minutes
+    const [isVersionNamingModalOpen, setIsVersionNamingModalOpen] = useState(false);
+    const [versionName, setVersionName] = useState("");
+    const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+    const [versionToRestore, setVersionToRestore] = useState<number | null>(null);
+    const [previewData, setPreviewData] = useState<folderStructureData[] | null>(null);
+    const [activePreviewId, setActivePreviewId] = useState<number | null>(null);
 
     const [projectName, setProjectName] = useState<string>(
         location.state?.projectName || "Loading Project..."
@@ -31,6 +43,88 @@ export default function MainLayout() {
     const getCSRF = () => {
         const match = document.cookie.match(/csrf_access_token=([^;]+)/);
         return match ? decodeURIComponent(match[1]) : "";
+    };
+
+    const triggerRestoreModal = (versionId: number) => {
+        setVersionToRestore(versionId);
+        setIsRestoreModalOpen(true);
+    };
+
+    const confirmRevert = async () => {
+        if (!versionToRestore) return;
+        try {
+            const res = await fetch(`http://localhost:5001/api/versions/${versionToRestore}/revert`, {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": getCSRF() },
+                credentials: "include"
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setData(data.file_tree);
+                setLogs(prev => [...prev, "System state restored successfully."]);
+                setIsRestoreModalOpen(false);
+                setActiveTab("files");
+            }
+        } catch (err) {
+            setLogs(prev => [...prev, "Error: Restore failed."]);
+        }
+    };
+
+    // Updated Handler, sends the current local state to the backend with the given version name.
+    const handleNamedSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!versionName.trim()) return;
+    
+        try {
+            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/version`, {
+                method: "POST",
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'X-CSRF-TOKEN': getCSRF() 
+                },
+                body: JSON.stringify({ 
+                    label: versionName,
+                    file_tree: data 
+                }),
+                credentials: "include"
+            });
+    
+            if (res.ok) {
+                setIsVersionNamingModalOpen(false);
+                setVersionName("");
+                fetchHistory(); 
+                
+                setLogs(prev => [...prev, `Identity Synced: ${versionName}`]);
+            }
+        } catch (err) {
+            console.error("Manual checkpoint failed");
+        }
+    };
+
+    const fetchHistory = useCallback(async () => {
+        try {
+            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/history`, { 
+                credentials: "include" 
+            });
+            if (res.ok) {
+                const historyData = await res.json();
+                setVersions(historyData);
+            }
+        } catch (err) {
+            setLogs(prev => [...prev, "Error: Failed to fetch version history."]);
+        }
+    }, [projectId]);
+
+    // Revert the workspace to a specific checkpoint
+    const handleRevert = (versionId: number) => {
+        setVersionToRestore(versionId);
+        setIsRestoreModalOpen(true);
+    };
+
+    // Toggles the modal
+    const createCheckpoint = () => {
+        setIsVersionNamingModalOpen(true);
     };
 
     useEffect(() => {
@@ -72,30 +166,70 @@ export default function MainLayout() {
         fetchProjectData();
     }, [projectId, navigate]);
 
+    const handlePreviewVersion = async (versionId: number) => {
+        try {
+            const res = await fetch(`http://localhost:5001/api/versions/${versionId}`, { 
+                credentials: "include" 
+            });
+            if (res.ok) {
+                const version = await res.json();
+                const snapshot = version.file_tree_snapshot;
+                
+                setPreviewData(snapshot);
+                setActivePreviewId(versionId);
+                
+                // If no file is currently opened, find the first file in the snapshot to display.
+                if (openedId === null && snapshot.length > 0) {
+                    const firstFile = snapshot.find((item: any) => item.type === "file");
+                    if (firstFile) {
+                        handleOpenedId(firstFile.id);
+                        handleOpenedFileTabsId(firstFile.id);
+                    }
+                }
+                
+                setLogs(prev => [...prev, `Previewing snapshot node: ${versionId}`]);
+            }
+        } catch (err) {
+            setLogs(prev => [...prev, "Error: Failed to load snapshot content."]);
+        }
+    };
+    
+    const exitPreview = () => {
+        setPreviewData(null);
+        setActivePreviewId(null);
+    };
+
     const saveToBackend = useCallback(
         debounce(async (updatedTree: folderStructureData[]) => {
             setIsSaving(true);
             try {
+                // Regular Live Save
                 const res = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
                     method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': getCSRF() // Security Check
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCSRF() },
                     body: JSON.stringify({ file_tree: updatedTree }),
                     credentials: 'include'
                 });
     
-                if (res.ok) {
-                    setLogs(prev => [...prev, `Sync complete: ${new Date().toLocaleTimeString()}`]);
+                // Automatic Versioning
+                const now = Date.now();
+                if (now - lastSnapshotTime > SNAPSHOT_INTERVAL) {
+                    await fetch(`http://localhost:5001/api/projects/${projectId}/version`, {
+                        method: "POST",
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCSRF() },
+                        body: JSON.stringify({ label: null }), // Null label = "Auto-save"
+                        credentials: "include"
+                    });
+                    setLastSnapshotTime(now);
+                    if (activeTab === "history") fetchHistory();
                 }
             } catch (err) {
-                setLogs(prev => [...prev, "Error: Auto-save failed. Check connection."]);
+                console.error("Sync failed");
             } finally {
                 setIsSaving(false);
             }
-        }, 2000), // 2-second debounce
-        [projectId]
+        }, 2000),
+        [projectId, lastSnapshotTime, activeTab]
     );
 
     const updateDataAndSync = (updateFn: (prev: folderStructureData[]) => folderStructureData[]) => {
@@ -397,24 +531,29 @@ export default function MainLayout() {
         e.preventDefault();
         setIsResizing(true);
         
+        // Calculate the left offset (the width of the Activity Bar)
+        const sidebarContainer = e.currentTarget.parentElement;
+        const offset = sidebarContainer?.getBoundingClientRect().left || 0;
+    
         const handleMouseMove = (moveEvent: MouseEvent) => {
-            const newWidth = moveEvent.clientX;
-
-            // Constrain the width (min 200px, max 600px or 40% of screen)
-            if (newWidth >= 200 && newWidth <= window.innerWidth * 0.4) {
+            // Subtract the offset from the mouse position
+            const newWidth = moveEvent.clientX - offset;
+    
+            // Constraint: Min 180px, Max 40% of screen
+            if (newWidth >= 180 && newWidth <= window.innerWidth * 0.4) {
                 setSidebarWidth(newWidth);
             }
         };
-
+    
         const handleMouseUp = () => {
+            setIsResizing(true); // Temporary state before final release
             setIsResizing(false);
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
-        }
-
+        };
+    
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
-
     };
 
     const [menuPos, setMenuPos] = useState<{x: number, y: number} | null>(null);
@@ -719,6 +858,44 @@ export default function MainLayout() {
                       
             </Modal>
 
+            <Modal 
+                isOpen={isVersionNamingModalOpen} 
+                onClose={() => setIsVersionNamingModalOpen(false)} 
+                title="Name Current Version"
+            >
+                <form onSubmit={handleNamedSave} className="flex flex-col gap-4">
+                    <p className="text-xs text-zinc-500">Naming this version makes it easier to find in your history later.</p>
+                    <input 
+                        autoFocus
+                        className="bg-[#2A2A2A] border border-zinc-600 p-2.5 rounded text-white outline-none focus:border-ide-accent text-sm"
+                        placeholder="e.g., Implemented WebSocket logic"
+                        value={versionName}
+                        onChange={(e) => setVersionName(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setIsVersionNamingModalOpen(false)} className="text-zinc-400 hover:text-white px-3 text-sm">Cancel</button>
+                        <button type="submit" className="bg-[#DC26268e] hover:bg-ide-accent text-white px-4 py-2 rounded text-sm transition-all">Save Name</button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal 
+                isOpen={isRestoreModalOpen} 
+                onClose={() => setIsRestoreModalOpen(false)} 
+                title="Confirm Restoration"
+            >
+                <div className="flex flex-col gap-4">
+                    <p className="text-sm text-zinc-400">
+                        You are about to overwrite your current workspace with a previous snapshot. 
+                        Unsaved changes will be permanently lost.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                        <button onClick={() => setIsRestoreModalOpen(false)} className="text-zinc-400 hover:text-white px-3 text-xs uppercase font-bold">Cancel</button>
+                        <button onClick={confirmRevert} className="bg-[#DC26268e] hover:bg-ide-accent text-white px-5 py-2 rounded text-xs uppercase font-bold shadow-lg">Restore Now</button>
+                    </div>
+                </div>
+            </Modal>
+
             <div className="grid grid-rows-[48px_1fr] h-screen w-full overflow-hidden">
 
                 {/* Top Navbar */}
@@ -732,30 +909,88 @@ export default function MainLayout() {
                     setIsSidebarVisible={setIsSidebarVisible}
                     isConsoleOpen={isConsoleOpen}
                     setIsConsoleOpen={setIsConsoleOpen}
+                    onCheckpoint={createCheckpoint}
                 />
 
                 <div className="h-full w-full flex overflow-hidden relative">
+                    {/* Activity Bar */}
+                    <aside className="w-12 h-full bg-ide-bg border-r border-white/5 flex flex-col items-center py-4 gap-4 z-40">
+                        <button 
+                            onClick={() => {setActiveTab("files"); setIsSidebarVisible(true);}}
+                            className={`p-2 transition-colors ${activeTab === "files" ? "text-[#dc2626]" : "text-zinc-600 hover:text-zinc-400"}`}
+                        >
+                            <HardDrive size={20} strokeWidth={1.5} />
+                        </button>
+                        <button 
+                            onClick={() => {setActiveTab("history"); setIsSidebarVisible(true); fetchHistory();}}
+                            className={`p-2 transition-colors ${activeTab === "history" ? "text-[#dc2626]" : "text-zinc-600 hover:text-zinc-400"}`}
+                        >
+                            <History size={20} strokeWidth={1.5} />
+                        </button>
+                    </aside>
+
+                    {/* 2. Dynamic Sidebar (File Explorer or Version History) */}
                     <div 
-                    style={{ 
-                        width: isSidebarVisible ? `${sidebarWidth}px` : '0px',
-                        opacity: isSidebarVisible ? 1 : 0 
-                    }} 
-                    className={`h-full shrink-0 overflow-hidden border-r border-ide-border 
-                        ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
+                        style={{ 
+                            width: isSidebarVisible ? `${sidebarWidth}px` : '0px',
+                            opacity: isSidebarVisible ? 1 : 0 
+                        }} 
+                        className={`h-full shrink-0 overflow-hidden border-r border-ide-border bg-ide-bg relative z-20
+                            ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
                     >
-                        <FileSidebar data={data} projectName={projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
-                                    openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-                                    expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
+                        {activeTab === "files" ? (
+                            <FileSidebar data={data} projectName={projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
+                            expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
+                        ) : (
+                            <VersionHistory 
+                                versions={versions} 
+                                onRevert={handleRevert}
+                                onPreview={handlePreviewVersion}
+                                activePreviewId={activePreviewId} 
+                            />
+                        )}
+
+                        {/* Shared Resize Handle */}
+                        <div 
+                            onMouseDown={handleMouseDown} 
+                            className={`absolute right-0 top-0 w-1.5 h-full cursor-col-resize z-50
+                                hover:bg-ide-accent/50 transition-colors 
+                                ${isResizing ? 'bg-ide-accent w-1' : ''}`} 
+                        >
+                            <div className="absolute -left-1 w-3 h-full bg-transparent" />
+                        </div>
                     </div>
-                    
+
                     <div className="flex flex-col flex-1 min-w-0 overflow-hidden relative">
-                    {isResizing && (
-                        <div className="absolute inset-0 z-100 cursor-col-resize bg-transparent" />
-                    )}
 
                         {/* Editor Section */}
-                        <div className="flex-1 min-h-0 overflow-hidden">
-                            <CodeEditor data={data} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                        <div className="flex-1 min-h-0 overflow-hidden relative">
+                            {/* Preview Banner */}
+                            {previewData && (
+                                <div className="absolute top-0 left-0 right-0 h-10 bg-[#dc2626]/20 border-b border-[#dc2626]/40 z-50 flex items-center justify-between px-4 backdrop-blur-md">
+                                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest font-bold text-white">
+                                        <History size={14} />
+                                        <span>Previewing Historical Snapshot</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={() => triggerRestoreModal(activePreviewId!)}
+                                            className="bg-[#dc2626] hover:bg-[#b91c1c] text-white text-[10px] px-3 py-1 rounded font-bold uppercase"
+                                        >
+                                            Restore this state
+                                        </button>
+                                        <button 
+                                            onClick={exitPreview}
+                                            className="bg-white/10 hover:bg-white/20 text-white text-[10px] px-3 py-1 rounded font-bold uppercase"
+                                        >
+                                            Exit Preview
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <CodeEditor data={previewData || data} readOnly={!!previewData} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                         </div>

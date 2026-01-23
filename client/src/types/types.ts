@@ -83,4 +83,18 @@ export interface NavbarProps {
     setIsSidebarVisible: (val: boolean) => void;
     isConsoleOpen: boolean;
     setIsConsoleOpen: (val: boolean) => void;
+    onCheckpoint: () => void;
 }
+
+export interface Version {
+    id: number;
+    label: string;
+    created_at: string;
+  }
+  
+export interface VersionHistoryProps {
+    versions: Version[];
+    onRevert: (id: number) => void;
+    onPreview: (id: number) => void;
+    activePreviewId: number | null;
+  }

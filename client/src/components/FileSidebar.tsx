@@ -127,16 +127,6 @@ export default function FileSidebar({
                     setActiveFolderId={setActiveFolderId}
                 />
             </div>
-            
-            <div 
-                onMouseDown={handleMouseDown} 
-                className={`absolute right-0 top-0 w-1.5 h-full cursor-col-resize z-30
-                    hover:bg-ide-accent/50 transition-colors 
-                    ${isResizing ? 'bg-ide-accent w-1' : ''}`} 
-            >
-                <div className="absolute -left-1 w-3 h-full bg-transparent" />
-            </div>
-
         </aside>
     );
 }

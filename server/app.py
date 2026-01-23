@@ -77,6 +77,21 @@ class TokenBlocklist(db.Model):
     jti = db.Column(db.String(36), nullable=False, index=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
+class Version(db.Model):
+    __tablename__ = 'versions'
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
+    
+    # The actual state of the workspace
+    file_tree_snapshot = db.Column(JSONB, nullable=False)
+    
+    label = db.Column(db.String(100), nullable=True) # e.g. "Working PPO Agent"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    project = db.relationship('Project', backref=db.backref('versions', lazy=True, cascade="all, delete-orphan"))
+
+
 # JWT Revocation Check
 @jwt.token_in_blocklist_loader
 def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
@@ -244,6 +259,69 @@ def update_user_profile():
 
     db.session.commit()
     return jsonify({"msg": "Profile updated successfully"}), 200
+
+@app.route('/api/projects/<int:project_id>/version', methods=['POST'])
+@jwt_required()
+def save_version(project_id):
+    current_user_id = get_jwt_identity()
+    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    data = request.get_json()
+
+    # Use the tree sent by frontend, fallback to current project state
+    snapshot_tree = data.get('file_tree', project.file_tree)
+
+    new_version = Version(
+        project_id=project.id,
+        file_tree_snapshot=snapshot_tree,
+        label=data.get('label')
+    )
+    db.session.add(new_version)
+    db.session.commit()
+    return jsonify({"msg": "Checkpoint created", "id": new_version.id}), 201
+
+@app.route('/api/versions/<int:version_id>/revert', methods=['POST'])
+@jwt_required()
+def revert_to_version(version_id):
+    version = Version.query.get_or_404(version_id)
+    project = Project.query.get(version.project_id)
+    
+    # Overwrite live project state with the snapshot
+    project.file_tree = version.file_tree_snapshot
+    db.session.commit()
+    return jsonify({"msg": "Project reverted", "file_tree": project.file_tree}), 200
+
+@app.route('/api/projects/<int:project_id>/history', methods=['GET'])
+@jwt_required()
+def get_project_history(project_id):
+    current_user_id = get_jwt_identity()
+    
+    # Ensure the project belongs to the user
+    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    
+    versions = Version.query.filter_by(project_id=project_id).order_by(Version.created_at.desc()).all()
+    
+    return jsonify([{
+        "id": v.id,
+        "label": v.label,
+        "created_at": v.created_at.isoformat() + 'Z'
+    } for v in versions]), 200
+
+@app.route('/api/versions/<int:version_id>', methods=['GET'])
+@jwt_required()
+def get_version_details(version_id):
+    current_user_id = get_jwt_identity()
+    version = Version.query.get_or_404(version_id)
+    project = Project.query.get(version.project_id)
+    
+    if str(project.user_id) != current_user_id:
+        return jsonify({"msg": "Unauthorized"}), 403
+
+    return jsonify({
+        "id": version.id,
+        "label": version.label,
+        "file_tree_snapshot": version.file_tree_snapshot,
+        "created_at": version.created_at.isoformat()
+    }), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5001)

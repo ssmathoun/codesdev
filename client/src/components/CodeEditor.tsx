@@ -8,6 +8,7 @@ import WelcomePage from "./WelcomePage";
 
 export default function CodeEditor({
   data,
+  readOnly = false,
   getPath,
   handleOpenTab,
   isSaving,
@@ -23,6 +24,7 @@ export default function CodeEditor({
   itemLookup,
 }: {
   data: folderStructureData[];
+  readOnly?: boolean;
   getPath: (id: number) => number[];
   handleOpenTab: (id: number) => void;
   updateFileContent: (id: number, newContent: string) => void;
@@ -128,19 +130,18 @@ export default function CodeEditor({
   /*
     Function to handle editor content change event
   */
-  function handleEditorChange(value: string | undefined) {
-    if (openedId !== null && typeof value === 'string') {
-      setIsSaving(true);
-      updateFileContent(openedId, value);
+    function handleEditorChange(value: string | undefined) {
+      // Prevent updates if we are in read-only/preview mode
+      if (readOnly) return; 
+  
+      if (openedId !== null && typeof value === 'string') {
+        setIsSaving(true);
+        updateFileContent(openedId, value);
+      }
     }
-  }
-
-  function showValue() {
-    alert(editorRef.current?.getValue());
-  }
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden">
+    <div className="flex flex-col h-full w-full overflow-hidden relative">
       {openedId !== null && activeFile ? (
         <FileTabs
           data={data}
@@ -167,6 +168,8 @@ export default function CodeEditor({
           beforeMount={handleEditorBeforeMount}
           onChange={handleEditorChange}
           options={{
+            readOnly: readOnly,
+            domReadOnly: readOnly,
             automaticLayout: true,
             fontFamily:
               "'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, 'Courier New', monospace",
