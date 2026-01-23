@@ -5,6 +5,7 @@ import { FolderPlus, FilePlus } from "lucide-react";
 export default function FileSidebar({
     data,
     projectName,
+    readOnly = false,
     menuPos,
     handleContextMenu,
     pendingParentId,
@@ -33,6 +34,7 @@ export default function FileSidebar({
 }: {
     data: folderStructureData[];
     projectName: string;
+    readOnly?: boolean;
     menuPos: { x: number; y: number } | null;
     handleContextMenu: (e: React.MouseEvent, item: folderStructureData) => void;
     pendingParentId: number | null;
@@ -77,32 +79,35 @@ export default function FileSidebar({
                 <h2 className="my-4 mx-2 text-center text-xl font-normal tracking-normal truncate">
                     {projectName}
                 </h2>
-
-                <div className="flex items-center justify-end mx-2 mb-1 gap-2">
-                    <button
-                        title="New File (Ctrl+N)"
-                        onClick={(e) => addItem(e, "file")}
-                    >
-                        <FilePlus
-                            size={18}
-                            className="text-zinc-500 hover:text-white"
-                        />
-                    </button>
-                    <button
-                        title="New Folder"
-                        onClick={(e) => addItem(e, "folder")}
-                    >
-                        <FolderPlus
-                            size={18}
-                            className="text-zinc-500 hover:text-white"
-                        />
-                    </button>
-                </div>
+                
+                {!readOnly ? (
+                    <div className="flex items-center justify-end mx-2 mb-1 gap-2">
+                        <button
+                            title="New File (Ctrl+N)"
+                            onClick={(e) => addItem(e, "file")}
+                        >
+                            <FilePlus
+                                size={18}
+                                className="text-zinc-500 hover:text-white"
+                            />
+                        </button>
+                        <button
+                            title="New Folder"
+                            onClick={(e) => addItem(e, "folder")}
+                        >
+                            <FolderPlus
+                                size={18}
+                                className="text-zinc-500 hover:text-white"
+                            />
+                        </button>
+                    </div>
+                ) : null}
             </div>
 
             <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-behavior-contain custom-scrollbar">
                 <FolderStructure
                     data={data}
+                    readOnly={readOnly}
                     menuPos={menuPos}
                     handleContextMenu={handleContextMenu}
                     pendingParentId={pendingParentId}

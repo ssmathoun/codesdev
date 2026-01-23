@@ -36,6 +36,8 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], get
                 const item = itemLookup.get(itemId);
                 const isActive = itemId === openedId;
 
+                if (!item) return null;
+                
                 return (
                     <div
                     key={itemId}

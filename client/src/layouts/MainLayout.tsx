@@ -50,6 +50,21 @@ export default function MainLayout() {
         setIsRestoreModalOpen(true);
     };
 
+    // Helper to filter out tabs that don't exist in the current data source
+    const syncTabsWithData = (activeData: folderStructureData[], currentTabs: number[]) => {
+        const validIds = new Set<number>();
+        
+        const collectIds = (items: folderStructureData[]) => {
+            items.forEach(item => {
+                validIds.add(item.id);
+                if (item.children) collectIds(item.children);
+            });
+        };
+        
+        collectIds(activeData);
+        return currentTabs.filter(tabId => validIds.has(tabId));
+    };
+
     const confirmRevert = async () => {
         if (!versionToRestore) return;
         try {
@@ -58,20 +73,35 @@ export default function MainLayout() {
                 headers: { "X-CSRF-TOKEN": getCSRF() },
                 credentials: "include"
             });
-
+    
             if (res.ok) {
-                const data = await res.json();
-                setData(data.file_tree);
-                setLogs(prev => [...prev, "System state restored successfully."]);
+                const result = await res.json();
+                
+                // Update live data
+                setData(result.file_tree);
+                
+                // Exit Preview Mode
+                setPreviewData(null);
+                setActivePreviewId(null);
+                
+                // 3. UI Cleanup
+                setLogs(prev => [...prev, "System state restored. Preview mode terminated."]);
+                setOpenedFileTabsId(prev => syncTabsWithData(result.file_tree, prev));
                 setIsRestoreModalOpen(false);
                 setActiveTab("files");
+    
+                // Force open a file from the newly restored tree
+                if (result.file_tree.length > 0) {
+                    const firstFile = result.file_tree.find((item: any) => item.type === "file");
+                    if (firstFile) setOpenedId(firstFile.id);
+                }
             }
         } catch (err) {
             setLogs(prev => [...prev, "Error: Restore failed."]);
         }
     };
 
-    // Updated Handler, sends the current local state to the backend with the given version name.
+    // Sends the current local state to the backend with the given version name.
     const handleNamedSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!versionName.trim()) return;
@@ -177,13 +207,32 @@ export default function MainLayout() {
                 
                 setPreviewData(snapshot);
                 setActivePreviewId(versionId);
+                setActiveTab("files");
                 
-                // If no file is currently opened, find the first file in the snapshot to display.
-                if (openedId === null && snapshot.length > 0) {
-                    const firstFile = snapshot.find((item: any) => item.type === "file");
-                    if (firstFile) {
-                        handleOpenedId(firstFile.id);
-                        handleOpenedFileTabsId(firstFile.id);
+                const snapshotIds = new Set<number>();
+                let firstFileInSnapshot: folderStructureData | null = null;
+
+                const analyzeSnapshot = (items: folderStructureData[]) => {
+                    items.forEach(item => {
+                        snapshotIds.add(item.id);
+                        if (item.type === "file" && !firstFileInSnapshot) {
+                            firstFileInSnapshot = item;
+                        }
+                        if (item.children) analyzeSnapshot(item.children);
+                    });
+                };
+
+                analyzeSnapshot(snapshot);
+                
+                if (openedId === null || !snapshotIds.has(openedId)) {
+                    if (firstFileInSnapshot) {
+                        const file = firstFileInSnapshot as folderStructureData;
+                        setOpenedId(file.id);
+                        
+                        // Add to tabs if not present
+                        setOpenedFileTabsId(prev => prev.includes(file.id) ? prev : [...prev, file.id]);
+                    } else {
+                        setOpenedId(null);
                     }
                 }
                 
@@ -197,6 +246,17 @@ export default function MainLayout() {
     const exitPreview = () => {
         setPreviewData(null);
         setActivePreviewId(null);
+        setOpenedFileTabsId(prev => syncTabsWithData(data, prev));
+        
+        // If the currently "open" file doesn't exist in the live data, reset it
+        if (openedId !== null && !data.some(item => item.id === openedId)) {
+            const firstLiveFile = data.find(item => item.type === "file");
+            if (firstLiveFile) {
+                setOpenedId(firstLiveFile.id);
+            } else {
+                setOpenedId(null); // This will trigger the WelcomePage
+            }
+        }
     };
 
     const saveToBackend = useCallback(
@@ -332,20 +392,20 @@ export default function MainLayout() {
     */
     const itemLookup = useMemo(() => {
         const map = new Map<number, folderStructureData>();
-        
+        const activeData = previewData || data;
+            
         function buildLookupTable(items: folderStructureData[]) {
             items.forEach(item => {
                 map.set(item.id, item);
-        
                 if (item.children) {
                     buildLookupTable(item.children);
                 }
             });
         }
-    
-            buildLookupTable(data);   
-            return map;
-        }, [data]);
+        
+        buildLookupTable(activeData);   
+        return map;
+    }, [data, previewData]);
     
     const getPath = useCallback((itemId: number | null): number[] => {
         if (itemId === null) return [];
@@ -675,6 +735,12 @@ export default function MainLayout() {
 
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                 e.preventDefault();
+
+                if (previewData) {
+                    setLogs(prev => [...prev, "System: Cannot save while in Preview Mode."]);
+                    return;
+                }
+
                 setIsSaving(true);
                 setTimeout(() => setIsSaving(false), 800);
                 setLogs(prev => [...prev, `Saved project at ${new Date().toLocaleTimeString()}`]);
@@ -683,6 +749,12 @@ export default function MainLayout() {
             if (e.ctrlKey && e.key.toLowerCase() === 'n') {
                 e.preventDefault();
                 e.stopImmediatePropagation();
+
+                if (previewData) {
+                    setLogs(prev => [...prev, "System: Cannot create files in Preview Mode."]);
+                    return;
+                }
+
                 setNewItemType("file");
                 setIsAddModalOpen(true);
                 setPendingParentId(activeFolderId);
@@ -700,7 +772,7 @@ export default function MainLayout() {
         window.addEventListener('keydown', handleKeyDown, { capture: true });
         
         return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    }, [activeFolderId]);
+    }, [activeFolderId, previewData]);
 
     function handleOpenTab(itemId: number) {
         const path = getPath(itemId);
@@ -873,8 +945,8 @@ export default function MainLayout() {
                         onChange={(e) => setVersionName(e.target.value)}
                     />
                     <div className="flex justify-end gap-2">
-                        <button type="button" onClick={() => setIsVersionNamingModalOpen(false)} className="text-zinc-400 hover:text-white px-3 text-sm">Cancel</button>
-                        <button type="submit" className="bg-[#DC26268e] hover:bg-ide-accent text-white px-4 py-2 rounded text-sm transition-all">Save Name</button>
+                        <button type="button" onClick={() => setIsVersionNamingModalOpen(false)} className="text-zinc-400 hover:text-white px-3">Cancel</button>
+                        <button type="submit" className="bg-[#DC26268e] hover:bg-ide-accent text-white px-4 py-2 rounded transition-all">Save Name</button>
                     </div>
                 </form>
             </Modal>
@@ -890,8 +962,8 @@ export default function MainLayout() {
                         Unsaved changes will be permanently lost.
                     </p>
                     <div className="flex justify-end gap-2">
-                        <button onClick={() => setIsRestoreModalOpen(false)} className="text-zinc-400 hover:text-white px-3 text-xs uppercase font-bold">Cancel</button>
-                        <button onClick={confirmRevert} className="bg-[#DC26268e] hover:bg-ide-accent text-white px-5 py-2 rounded text-xs uppercase font-bold shadow-lg">Restore Now</button>
+                        <button onClick={() => setIsRestoreModalOpen(false)} className="text-zinc-400 hover:text-white px-3">Cancel</button>
+                        <button onClick={confirmRevert} className="bg-[#DC26268e] hover:bg-ide-accent text-white px-4 py-2 rounded">Restore Now</button>
                     </div>
                 </div>
             </Modal>
@@ -939,7 +1011,7 @@ export default function MainLayout() {
                             ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
                     >
                         {activeTab === "files" ? (
-                            <FileSidebar data={data} projectName={projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <FileSidebar data={previewData || data} readOnly={!!previewData} projectName={previewData ? `PREVIEW: ${projectName}` : projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
                         ) : (
