@@ -10,12 +10,21 @@ from flask_jwt_extended import (
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import select, String, Integer, DateTime, ForeignKey, Text, func, delete
+from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
+from sqlalchemy.orm.attributes import flag_modified
 from dotenv import load_dotenv
 from datetime import datetime
+from typing import Optional, List
 
 # Load Environment Variables
 load_dotenv()
 
+# Define the Declarative Base
+class Base(DeclarativeBase):
+    pass
+
+# Initialize Flask App
 app = Flask(__name__)
 
 # Configuration
@@ -31,7 +40,7 @@ app.config['JWT_REFRESH_COOKIE_PATH'] = '/api/token/refresh'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # Enable CSRF protection
 app.config['JWT_COOKIE_SECURE'] = False       # Set to True in Production (HTTPS)
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
-app.config['JWT_COOKIE_HTTPONLY'] = False  # Access token stays secure
+app.config['JWT_COOKIE_HTTPONLY'] = True   # Access token stays secure
 app.config['JWT_CSRF_CHECK_FORM'] = False # We use headers, not forms
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=2)
 app.config['JWT_CSRF_COOKIE_HTTPONLY'] = False # This allows document.cookie to see it
@@ -39,7 +48,7 @@ app.config['JWT_ACCESS_CSRF_HEADER_NAME'] = "X-CSRF-TOKEN"
 app.config['JWT_CSRF_IN_COOKIES'] = True
 
 # Initialize Extensions
-db = SQLAlchemy(app)
+db = SQLAlchemy(app, model_class=Base)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
@@ -52,51 +61,49 @@ CORS(app, supports_credentials=True, origins=[
 # Database Models
 class User(db.Model):
     __tablename__ = 'users'
-    __table_args__ = {'extend_existing': True} 
 
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
-    avatar_id = db.Column(db.String(50), nullable=True, default="default")
-    avatar_url = db.Column(db.Text, nullable=True) 
-    projects = db.relationship('Project', backref='owner', lazy=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    avatar_id: Mapped[Optional[str]] = mapped_column(String(50), default="default")
+    avatar_url: Mapped[Optional[str]] = mapped_column(Text)
+    
+    # Explicit 2.0 relationship
+    projects: Mapped[List["Project"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
 
 class Project(db.Model):
     __tablename__ = 'projects'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    # JSONB for high-performance file tree persistence
-    file_tree = db.Column(JSONB, nullable=False, default=lambda: [])
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    file_tree: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    owner: Mapped["User"] = relationship(back_populates="projects")
+    versions: Mapped[List["Version"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 class TokenBlocklist(db.Model):
     __tablename__ = 'token_blocklist'
-    id = db.Column(db.Integer, primary_key=True)
-    jti = db.Column(db.String(36), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    id: Mapped[int] = mapped_column(primary_key=True)
+    jti: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 class Version(db.Model):
     __tablename__ = 'versions'
-    id = db.Column(db.Integer, primary_key=True)
-    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), nullable=False)
-    
-    # The actual state of the workspace
-    file_tree_snapshot = db.Column(JSONB, nullable=False)
-    
-    label = db.Column(db.String(100), nullable=True) # e.g. "Working PPO Agent"
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relationships
-    project = db.relationship('Project', backref=db.backref('versions', lazy=True, cascade="all, delete-orphan"))
-
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey('projects.id'), nullable=False)
+    file_tree_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, default=None) 
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    project: Mapped["Project"] = relationship(back_populates="versions")
 
 # JWT Revocation Check
 @jwt.token_in_blocklist_loader
 def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
     jti = jwt_payload["jti"]
-    token = db.session.query(TokenBlocklist.id).filter_by(jti=jti).scalar()
+    token = db.session.scalar(select(TokenBlocklist).filter_by(jti=jti))
     return token is not None
 
 # Auth Routes
@@ -104,7 +111,7 @@ def check_if_token_revoked(jwt_header, jwt_payload: dict) -> bool:
 def register():
     data = request.get_json()
     
-    if User.query.filter_by(email=data['email']).first():
+    if db.session.scalar(select(User).filter_by(email=data['email'])):
         return jsonify({"msg": "Registration failed: User already exists"}), 400
     
     hashed_pw = generate_password_hash(data['password'])
@@ -125,7 +132,7 @@ def register():
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    user = User.query.filter_by(email=data['email']).first()
+    user = db.session.scalar(select(User).filter_by(email=data['email']))
     
     if user and check_password_hash(user.password_hash, data['password']):
         access_token = create_access_token(identity=str(user.id))
@@ -151,8 +158,8 @@ def logout():
 @app.route('/api/projects', methods=['GET'])
 @jwt_required()
 def get_projects():
-    current_user_id = get_jwt_identity()
-    user_projects = Project.query.filter_by(user_id=current_user_id).all()
+    current_user_id = int(get_jwt_identity())
+    user_projects = db.session.scalars(select(Project).filter_by(user_id=current_user_id)).all()
     return jsonify([{
         "id": p.id, 
         "name": p.name, 
@@ -163,10 +170,14 @@ def get_projects():
 @app.route('/api/projects/<int:project_id>', methods=['GET']) # MUST include GET
 @jwt_required()
 def get_single_project(project_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     
     # Ensure the project belongs to the logged-in user
-    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    project = db.session.scalar(
+    select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+    )
+    if not project:
+        return jsonify({"msg": "Project not found"}), 404
     
     return jsonify({
         "id": project.id,
@@ -178,7 +189,7 @@ def get_single_project(project_id):
 @app.route('/api/projects', methods=['POST'])
 @jwt_required()
 def create_project():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     data = request.get_json()
     
     new_project = Project(
@@ -194,8 +205,8 @@ def create_project():
 @app.route('/api/me', methods=['GET'])
 @jwt_required()
 def get_current_user():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user_id = int(get_jwt_identity())
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({"msg": "User not found"}), 404
         
@@ -210,14 +221,19 @@ def get_current_user():
 @app.route('/api/projects/<int:project_id>', methods=['PUT'])
 @jwt_required()
 def update_project(project_id):
-    current_user_id = get_jwt_identity()
-    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    current_user_id = int(get_jwt_identity())
+    project = db.session.scalar(
+    select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+    )
+    if not project:
+        return jsonify({"msg": "Project not found"}), 404
     
     data = request.get_json()
     
     # Update the JSONB blob
     if 'file_tree' in data:
         project.file_tree = data['file_tree']
+        flag_modified(project, "file_tree")
     
     if 'name' in data:
         project.name = data['name']
@@ -228,8 +244,12 @@ def update_project(project_id):
 @app.route('/api/projects/<int:project_id>', methods=['DELETE'])
 @jwt_required()
 def delete_project(project_id):
-    current_user_id = get_jwt_identity()
-    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    current_user_id = int(get_jwt_identity())
+    project = db.session.scalar(
+    select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+    )
+    if not project:
+        return jsonify({"msg": "Project not found"}), 404
     
     db.session.delete(project)
     db.session.commit()
@@ -238,7 +258,7 @@ def delete_project(project_id):
 @app.route('/api/user/update', methods=['PUT'])
 @jwt_required()
 def update_user_profile():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
     data = request.get_json()
 
@@ -263,30 +283,45 @@ def update_user_profile():
 @app.route('/api/projects/<int:project_id>/version', methods=['POST'])
 @jwt_required()
 def save_version(project_id):
-    current_user_id = get_jwt_identity()
-    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
-    data = request.get_json()
+    current_user_id = int(get_jwt_identity())
+    
+    # Fetch project
+    project = db.session.scalar(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+    )
+    if not project:
+        return jsonify({"msg": "Project not found"}), 404
 
-    # Use the tree sent by frontend, fallback to current project state
-    snapshot_tree = data.get('file_tree', project.file_tree)
+    data = request.get_json()
+    
+    # Handle the Label
+    # If the frontend sends an empty string, we force it to None
+    raw_label = data.get('label')
+    version_label = raw_label if raw_label and raw_label.strip() != "" else None
 
     new_version = Version(
         project_id=project.id,
-        file_tree_snapshot=snapshot_tree,
-        label=data.get('label')
+        file_tree_snapshot=data.get('file_tree', project.file_tree),
+        label=version_label
     )
     db.session.add(new_version)
 
-    from datetime import datetime, timedelta
+    # The Cleanup
+    # We use func.now() for database-level time consistency
     cutoff = datetime.utcnow() - timedelta(hours=24)
     
-    Version.query.filter(
-        Version.project_id == project_id,
-        Version.label == None,
-        Version.created_at < cutoff
-    ).delete()
+    cleanup_stmt = (
+        delete(Version)
+        .where(Version.project_id == project_id)
+        .where(Version.label == None)  # Targets only actual autosaves
+        .where(Version.created_at < cutoff)
+    )
     
+    db.session.execute(cleanup_stmt)
+    
+    # Commit both the New Save and the Cleanup in one transaction
     db.session.commit()
+    
     return jsonify({"msg": "Checkpoint created", "id": new_version.id}), 201
 
 @app.route('/api/versions/<int:version_id>/revert', methods=['POST'])
@@ -303,10 +338,14 @@ def revert_to_version(version_id):
 @app.route('/api/projects/<int:project_id>/history', methods=['GET'])
 @jwt_required()
 def get_project_history(project_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     
     # Ensure the project belongs to the user
-    project = Project.query.filter_by(id=project_id, user_id=current_user_id).first_or_404()
+    project = db.session.scalar(
+    select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+    )
+    if not project:
+        return jsonify({"msg": "Project not found"}), 404
     
     versions = Version.query.filter_by(project_id=project_id).order_by(Version.created_at.desc()).all()
     
@@ -319,7 +358,7 @@ def get_project_history(project_id):
 @app.route('/api/versions/<int:version_id>', methods=['GET'])
 @jwt_required()
 def get_version_details(version_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     version = Version.query.get_or_404(version_id)
     project = Project.query.get(version.project_id)
     
