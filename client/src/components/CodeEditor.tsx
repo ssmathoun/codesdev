@@ -1,17 +1,21 @@
 import Editor, { DiffEditor, useMonaco, loader } from '@monaco-editor/react';
 import type { BeforeMount, OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback, useMemo } from 'react';
 import type { folderStructureData } from "../../../shared/types";
 import FileTabs from './FileTabs';
 import WelcomePage from "./WelcomePage";
 import { socket } from '../services/socket';
+import * as Y from 'yjs';
+import { MonacoBinding } from 'y-monaco';
+import { Awareness, encodeAwarenessUpdate, applyAwarenessUpdate } from 'y-protocols/awareness';
 
 export default function CodeEditor({
   data,
   readOnly = false,
   projectId,
   getPath,
+  currentUser,
   handleOpenTab,
   isSaving,
   setIsSaving,
@@ -29,6 +33,7 @@ export default function CodeEditor({
   readOnly?: boolean;
   projectId: string | undefined;
   getPath: (id: number) => number[];
+  currentUser: { username: string; avatar_id: string } | null;
   handleOpenTab: (id: number) => void;
   updateFileContent: (id: number, newContent: string) => void;
   addItemToData: (item: folderStructureData) => void;
@@ -42,9 +47,106 @@ export default function CodeEditor({
   isSaving: boolean;
   setIsSaving: (prev: boolean) => void;
 }) {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // Stores current editor content
-  const monaco = useMonaco(); // Access the monaco instance
+  const modelPool = useRef<Map<string, { model: editor.ITextModel, binding: MonacoBinding }>>(new Map());
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monaco = useMonaco();
+  
+  const yDoc = useMemo(() => new Y.Doc(), []);
+  const awareness = useMemo(() => new Awareness(yDoc), [yDoc]);
+  
   const activeFile = openedId !== null ? itemLookup.get(openedId) : null;
+  const virtualPath = useMemo(() => {
+    return activeFile && openedId
+      ? getPath(openedId).map((id) => itemLookup.get(id)?.name).join('/')
+      : '';
+  }, [openedId, activeFile, getPath, itemLookup]);
+
+
+  const setupModel = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor || !monaco || !openedId || !virtualPath || (editor as any)._isDisposed) return;
+  
+    const uri = monaco.Uri.parse(`file:///${virtualPath}`);
+    const modelKey = uri.toString();
+  
+    try {
+      let pooled = modelPool.current.get(modelKey);
+  
+      if (!pooled) {
+        let model = monaco.editor.getModel(uri);
+        const dbContent = itemLookup.get(openedId)?.content || "";
+  
+        if (!model) {
+          model = monaco.editor.createModel(dbContent, getLanguage(activeFile?.name), uri);
+        }
+        
+        const yText = yDoc.getText(openedId.toString());
+        
+        // If Yjs is new/empty, fill it with DB content immediately
+        if (yText.toString().length === 0 && dbContent.length > 0) {
+          yText.insert(0, dbContent);
+        }
+  
+        const binding = new MonacoBinding(yText, model, new Set([editor]), awareness);
+        pooled = { model, binding };
+        modelPool.current.set(modelKey, pooled);
+      }
+  
+      if (pooled.model && !pooled.model.isDisposed()) {
+        if (editor.getModel() !== pooled.model) {
+          editor.setModel(pooled.model);
+        }
+        
+        editor.layout();
+        setTimeout(() => editor.layout(), 10); 
+      }
+    } catch (e) {
+      console.warn("Retrying model swap...");
+      setTimeout(setupModel, 100);
+    }
+  }, [monaco, openedId, virtualPath, awareness, yDoc, activeFile?.name, itemLookup]);
+
+// Stable Connection Effect
+useEffect(() => {
+  if (!projectId || !currentUser) return;
+  const onYjs = (update: any) => Y.applyUpdate(yDoc, new Uint8Array(update));
+  const onAware = (update: any) => applyAwarenessUpdate(awareness, new Uint8Array(update), 'remote');
+  socket.on("yjs-update", onYjs);
+  socket.on("awareness-update", onAware);
+  const broadcastY = (update: Uint8Array) => socket.emit("yjs-update", update, projectId);
+  const broadcastA = ({ added, updated, removed }: any) => {
+    const changedIds = added.concat(updated).concat(removed);
+    socket.emit("awareness-update", encodeAwarenessUpdate(awareness, changedIds), projectId);
+  };
+  yDoc.on('update', broadcastY);
+  awareness.on('update', broadcastA);
+  awareness.setLocalStateField('user', {
+    name: currentUser.username,
+    color: '#' + Math.floor(Math.random() * 16777215).toString(16)
+  });
+  return () => {
+    socket.off("yjs-update", onYjs);
+    socket.off("awareness-update", onAware);
+    yDoc.off('update', broadcastY);
+    awareness.off('update', broadcastA);
+  };
+}, [projectId, currentUser?.username, yDoc, awareness]);
+
+// Fixes Visibility and the Disposed Error
+useEffect(() => {
+  setupModel();
+}, [setupModel]);
+
+// Cleanup on exit
+useEffect(() => {
+  return () => {
+    modelPool.current.forEach(item => {
+      item.binding.destroy();
+      item.model.dispose();
+    });
+    modelPool.current.clear();
+  };
+}, [projectId]);
 
   const getLanguage = (fileName?: string) => {
     if (!fileName) return 'plaintext';
@@ -69,65 +171,6 @@ export default function CodeEditor({
 
     return languageMap[ext!] || 'plaintext';
 };
-  
-  const virtualPath =
-    activeFile && openedId
-      ? getPath(openedId)
-          .map((id) => itemLookup.get(id)?.name)
-          .join('/')
-      : '';
-
-  useEffect(() => {
-    if (!monaco || !data) return;
-
-    const currentUris = new Set<string>();
-
-    const syncModelsRecursively = (items: folderStructureData[]) => {
-      items.forEach((item) => {
-        if (item.type === 'file') {
-          const pathParts = getPath(item.id).map((id) => itemLookup.get(id)?.name);
-          const fullPath = `file:///${pathParts.join('/')}`;
-          const uri = monaco.Uri.parse(fullPath);
-          currentUris.add(uri.toString());
-
-          const model = monaco.editor.getModel(uri);
-
-          if (model) {
-            if (model.getValue() !== item.content) {
-              try {
-                model.pushEditOperations(
-                  [],
-                  [{
-                    range: model.getFullModelRange(),
-                    text: item.content || '',
-                  }],
-                  () => null
-                );
-              } catch (err: any) {
-                if (err?.type !== 'cancelation') {
-                  console.error("Editor Sync Error:", err);
-                }
-              }
-            }
-          } else {
-            // Use getLanguage to set the correct language per model
-            monaco.editor.createModel(item.content || '', getLanguage(item.name), uri);
-          }
-        } else if (item.children) {
-          syncModelsRecursively(item.children);
-        }
-      });
-    };
-
-    syncModelsRecursively(data);
-
-    // Dispose of models that were deleted from the tree
-    monaco.editor.getModels().forEach(model => {
-      if (!currentUris.has(model.uri.toString())) {
-          model.dispose();
-      }
-  });
-  }, [data, monaco, getPath, itemLookup]);
 
   /*
     Setup TypeScript Compiler Options Before Mount
@@ -151,32 +194,19 @@ export default function CodeEditor({
     });
   };
 
-  /*
-    Function to handle editor mount event
+  /* 
+    Responsible for PostgreSQL persistence 
   */
-  const handleEditorDidMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-    editor.focus();
-  };
+  function handleEditorChange(value: string | undefined) {
+    if (readOnly || value === undefined || !openedId) return;
 
-  /*
-    Function to handle editor content change event
-  */
-    function handleEditorChange(value: string | undefined) {
-      if (readOnly || value === undefined) return;
-  
-      const currentContent = itemLookup.get(openedId!)?.content;
-  
-      if (value !== currentContent) {
-          setIsSaving(true);
-          updateFileContent(openedId!, value);
-  
-          socket.emit("code-change", {
-              projectId,
-              fileId: openedId,
-              content: value
-          });
-      }
+    const currentContent = itemLookup.get(openedId)?.content;
+
+    if (value !== currentContent) {
+        setIsSaving(true);
+        // Only updates the local React state which triggers the 2s debounce save to DB
+        updateFileContent(openedId, value);
+    }
   }
 
   return (
@@ -195,23 +225,24 @@ export default function CodeEditor({
           itemLookup={itemLookup}
         />
       ) : null}
-
+  
       {openedId !== null ? (
         <Editor
+          key="persistent-editor"
           height="100%"
           theme="vs-dark"
-          path={`file:///${virtualPath}`}
-          language = {getLanguage(activeFile?.name)}
-          value={itemLookup.get(openedId)?.content}
-          onMount={handleEditorDidMount}
           beforeMount={handleEditorBeforeMount}
           onChange={handleEditorChange}
+          onMount={(editor) => {
+            editorRef.current = editor;
+            setupModel();
+            editor.focus();
+          }}
           options={{
             readOnly: readOnly,
             domReadOnly: readOnly,
             automaticLayout: true,
-            fontFamily:
-              "'Fira Code', 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, 'Courier New', monospace",
+            fontFamily: "'Fira Code', 'Cascadia Code', 'Source Code Pro', monospace",
             fontSize: 14,
             minimap: { enabled: false },
             scrollBeyondLastLine: false,

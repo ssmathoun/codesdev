@@ -43,13 +43,16 @@ io.use((socket: Socket, next) => {
     const userId = (socket as any).userId;
   
     socket.on("join-project", (projectId: string) => {
-        socket.join(`project-${projectId}`);
+        socket.join(projectId);
     });
 
-    // Broadcast code changes to all users in the project room
-    socket.on("code-change", (data: { projectId: string, fileId: number, content: string }) => {
-        // This sends to everyone in the room EXCEPT the sender
-        socket.to(`project-${data.projectId}`).emit("code-update", data);
+    socket.on("yjs-update", (update: Buffer, projectId: string) => {
+        // Broadcast the binary update to everyone else in the room
+        socket.broadcast.to(projectId).emit("yjs-update", update);
+    });
+
+    socket.on("awareness-update", (update: Buffer, projectId: string) => {
+        socket.broadcast.to(projectId).emit("awareness-update", update);
     });
 
     socket.on("disconnect", () => console.log(`User ${userId} disconnected`));

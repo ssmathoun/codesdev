@@ -245,30 +245,12 @@ export default function MainLayout() {
     
         // Open the connection
         socket.connect();
-    
-        const handleJoin = () => {
-            socket.emit("join-project", projectId);
-        };
-    
-        // If we are already connected, join now. Otherwise, wait for 'connect'.
-        if (socket.connected) {
-            handleJoin();
-        } else {
-            socket.on("connect", handleJoin);
-        }
-    
-        // Listener for incoming updates
-        socket.on("code-update", (data: { fileId: number, content: string }) => {
-            updateFileContent(data.fileId, data.content, true);
-        });
-    
-        // Cleanup
+        socket.emit("join-project", projectId);
+
         return () => {
-            socket.off("connect", handleJoin);
-            socket.off("code-update");
             socket.disconnect();
         };
-    }, [projectId, !!currentUser]);
+    }, [projectId, currentUser?.username]);
 
     const exitPreview = () => {
         setPreviewData(null);
@@ -368,6 +350,11 @@ export default function MainLayout() {
     const [isSaving, setIsSaving] = useState(false);
 
     const updateFileContent = (id: number, newContent: string, isRemote: boolean = false): void => {
+        const currentFile = itemLookup.get(id);
+        if (newContent === "" && currentFile?.content && currentFile.content.length > 0) {
+            return; 
+        }
+    
         setData(prevData => {
             const updateContentRecursively = (items: folderStructureData[]): folderStructureData[] => {
                 return items.map(item => {
@@ -380,7 +367,7 @@ export default function MainLayout() {
                 });
             };
             const nextData = updateContentRecursively(prevData);
-
+    
             if (!isRemote) {
                 saveToBackend(nextData);
             }
@@ -1095,7 +1082,7 @@ export default function MainLayout() {
                                 </div>
                             )}
 
-                            <CodeEditor data={previewData || data} readOnly={!!previewData} projectId={projectId} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <CodeEditor data={previewData || data} readOnly={!!previewData} projectId={projectId} getPath={getPath} currentUser={currentUser} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                         </div>
