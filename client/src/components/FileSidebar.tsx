@@ -1,4 +1,4 @@
-import type { folderStructureData } from "../types/types";
+import type { folderStructureData } from "../../../shared/types";
 import FolderStructure from "./FolderStructure";
 import { FolderPlus, FilePlus } from "lucide-react";
 

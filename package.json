@@ -1,0 +1,14 @@
+{
+    "name": "codesdev-root",
+    "version": "1.0.0",
+    "scripts": {
+      "install-all": "npm install && cd socket-server && npm install && cd ../client && npm install",
+      "dev:server": "cd server && source venv/bin/activate && python app.py",
+      "dev:socket": "cd socket-server && npx ts-node -r tsconfig-paths/register -P tsconfig.json server.ts",
+      "dev:client": "cd client && npm run dev",
+      "dev": "npx concurrently --kill-others \"npm run dev:server\" \"npm run dev:socket\" \"npm run dev:client\""
+    },
+    "devDependencies": {
+      "concurrently": "^8.2.0"
+    }
+}

@@ -2,13 +2,15 @@ import Editor, { DiffEditor, useMonaco, loader } from '@monaco-editor/react';
 import type { BeforeMount, OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { useRef, useEffect } from 'react';
-import type { folderStructureData } from "../types/types";
+import type { folderStructureData } from "../../../shared/types";
 import FileTabs from './FileTabs';
 import WelcomePage from "./WelcomePage";
+import { socket } from '../services/socket';
 
 export default function CodeEditor({
   data,
   readOnly = false,
+  projectId,
   getPath,
   handleOpenTab,
   isSaving,
@@ -25,6 +27,7 @@ export default function CodeEditor({
 }: {
   data: folderStructureData[];
   readOnly?: boolean;
+  projectId: string | undefined;
   getPath: (id: number) => number[];
   handleOpenTab: (id: number) => void;
   updateFileContent: (id: number, newContent: string) => void;
@@ -91,7 +94,20 @@ export default function CodeEditor({
 
           if (model) {
             if (model.getValue() !== item.content) {
-              model.setValue(item.content || '');
+              try {
+                model.pushEditOperations(
+                  [],
+                  [{
+                    range: model.getFullModelRange(),
+                    text: item.content || '',
+                  }],
+                  () => null
+                );
+              } catch (err: any) {
+                if (err?.type !== 'cancelation') {
+                  console.error("Editor Sync Error:", err);
+                }
+              }
             }
           } else {
             // Use getLanguage to set the correct language per model
@@ -147,14 +163,21 @@ export default function CodeEditor({
     Function to handle editor content change event
   */
     function handleEditorChange(value: string | undefined) {
-      // Prevent updates if we are in read-only/preview mode
-      if (readOnly) return; 
+      if (readOnly || value === undefined) return;
   
-      if (openedId !== null && typeof value === 'string') {
-        setIsSaving(true);
-        updateFileContent(openedId, value);
+      const currentContent = itemLookup.get(openedId!)?.content;
+  
+      if (value !== currentContent) {
+          setIsSaving(true);
+          updateFileContent(openedId!, value);
+  
+          socket.emit("code-change", {
+              projectId,
+              fileId: openedId,
+              content: value
+          });
       }
-    }
+  }
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden relative">

@@ -1,11 +1,5 @@
-export interface folderStructureData {
-    id: number;
-    name: string;
-    type: 'file' | 'folder';
-    parent?: number | null;
-    content?: string;
-    children?: folderStructureData[];
-}
+
+import type { folderStructureData, Project, Version, Collaborator } from '../../shared/types';
 
 export interface ModalProps {
     isOpen: boolean;
@@ -47,19 +41,6 @@ export type ViewMode = "grid" | "list";
 
 export type Category = "all" | "mine" | "shared-in" | "shared-out";
 
-export interface Collaborator {
-  name: string;
-  avatarUrl?: string;
-}
-
-export interface Project {
-    id: string;
-    name: string;
-    file_tree: any[];
-    owner_name?: string;
-    created_at?: string;
-}
-
 export interface AuthContextType {
   user: any;
   loading: boolean;
@@ -85,12 +66,6 @@ export interface NavbarProps {
     setIsConsoleOpen: (val: boolean) => void;
     onCheckpoint: () => void;
 }
-
-export interface Version {
-    id: number;
-    label: string;
-    created_at: string;
-  }
   
 export interface VersionHistoryProps {
     versions: Version[];

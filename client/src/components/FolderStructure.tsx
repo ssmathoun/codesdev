@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Ellipsis } from "lucide-react";
-import type { folderStructureData } from "../types/types";
+import type { folderStructureData } from "../../../shared/types";
 
 export default function FolderStructure({ 
     data, 

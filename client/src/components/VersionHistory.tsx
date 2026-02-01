@@ -1,5 +1,5 @@
 import { History, Clock, Calendar } from "lucide-react";
-import type { VersionHistoryProps } from "../types/types";
+import type { VersionHistoryProps } from "../../types/types";
 
 export default function VersionHistory({ versions, onRevert, onPreview, activePreviewId }: VersionHistoryProps) {
     

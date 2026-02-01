@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import Modal from "../components/Modal";
 import { AVATAR_MAP } from "../constants/avatars";
-import type { Category, Collaborator, ViewMode, ModalType } from "../types/types";
+import type { Category, ViewMode, ModalType } from "../../types/types";
 
 // Helper to handle relative and absolute dating
 const formatProjectDate = (dateInput: any, currentTime: number) => {

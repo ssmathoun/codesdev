@@ -1,4 +1,4 @@
-import type { ContextMenuProps } from "../types/types";
+import type { ContextMenuProps } from "../../types/types";
 import { createPortal } from 'react-dom';
 
 export default function ContextMenu({x, y, selectType, onClose, onNewFile, onNewFolder, onDelete, onRename}: ContextMenuProps) {

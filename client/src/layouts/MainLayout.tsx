@@ -4,13 +4,14 @@ import debounce from "lodash.debounce";
 import CodeEditor from "../components/CodeEditor";
 import FileSidebar from "../components/FileSidebar";
 import ContextMenu from "../components/ContextMenu";
-import type { folderStructureData } from "../types/types";
+import type { folderStructureData } from "../../../shared/types";
 import Modal from "../components/Modal";
 import Navbar from "../components/Navbar";
 import OutputConsole from "../components/OutputConsole"
 import CommandPalette from "../components/CommandPallete";
 import { HardDrive, History } from "lucide-react";
 import VersionHistory from "../components/VersionHistory";
+import { socket } from "../services/socket";
 
 export default function MainLayout() {
     const [currentUser, setCurrentUser] = useState<{ 
@@ -84,8 +85,7 @@ export default function MainLayout() {
                 setPreviewData(null);
                 setActivePreviewId(null);
                 
-                // 3. UI Cleanup
-                setLogs(prev => [...prev, "System state restored. Preview mode terminated."]);
+                // UI Cleanup
                 setOpenedFileTabsId(prev => syncTabsWithData(result.file_tree, prev));
                 setIsRestoreModalOpen(false);
                 setActiveTab("files");
@@ -124,8 +124,6 @@ export default function MainLayout() {
                 setIsVersionNamingModalOpen(false);
                 setVersionName("");
                 fetchHistory(); 
-                
-                setLogs(prev => [...prev, `Identity Synced: ${versionName}`]);
             }
         } catch (err) {
             console.error("Manual checkpoint failed");
@@ -235,14 +233,43 @@ export default function MainLayout() {
                         setOpenedId(null);
                     }
                 }
-                
-                setLogs(prev => [...prev, `Previewing snapshot node: ${versionId}`]);
             }
         } catch (err) {
             setLogs(prev => [...prev, "Error: Failed to load snapshot content."]);
         }
     };
     
+    useEffect(() => {
+        // Don't connect until we have both the Project and User ID
+        if (!projectId || !currentUser) return;
+    
+        // Open the connection
+        socket.connect();
+    
+        const handleJoin = () => {
+            socket.emit("join-project", projectId);
+        };
+    
+        // If we are already connected, join now. Otherwise, wait for 'connect'.
+        if (socket.connected) {
+            handleJoin();
+        } else {
+            socket.on("connect", handleJoin);
+        }
+    
+        // Listener for incoming updates
+        socket.on("code-update", (data: { fileId: number, content: string }) => {
+            updateFileContent(data.fileId, data.content, true);
+        });
+    
+        // Cleanup
+        return () => {
+            socket.off("connect", handleJoin);
+            socket.off("code-update");
+            socket.disconnect();
+        };
+    }, [projectId, !!currentUser]);
+
     const exitPreview = () => {
         setPreviewData(null);
         setActivePreviewId(null);
@@ -340,8 +367,8 @@ export default function MainLayout() {
 
     const [isSaving, setIsSaving] = useState(false);
 
-    const updateFileContent = (id: number, newContent: string): void => {
-        updateDataAndSync((prevData) => {
+    const updateFileContent = (id: number, newContent: string, isRemote: boolean = false): void => {
+        setData(prevData => {
             const updateContentRecursively = (items: folderStructureData[]): folderStructureData[] => {
                 return items.map(item => {
                     if (item.id === id && item.type === "file") {
@@ -352,7 +379,13 @@ export default function MainLayout() {
                     return item;
                 });
             };
-            return updateContentRecursively(prevData);
+            const nextData = updateContentRecursively(prevData);
+
+            if (!isRemote) {
+                saveToBackend(nextData);
+            }
+    
+            return nextData;
         });
         setIsSaving(false);
     };
@@ -1062,7 +1095,7 @@ export default function MainLayout() {
                                 </div>
                             )}
 
-                            <CodeEditor data={previewData || data} readOnly={!!previewData} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <CodeEditor data={previewData || data} readOnly={!!previewData} projectId={projectId} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                         </div>

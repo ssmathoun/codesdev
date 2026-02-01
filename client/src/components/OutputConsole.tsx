@@ -1,5 +1,5 @@
 import { Terminal, X, Trash2, ChevronRight } from "lucide-react";
-import type { OutputConsoleProps } from "../types/types";
+import type { OutputConsoleProps } from "../../types/types";
 import { useEffect, useRef } from "react";
 
 export default function OutputConsole({ logs, onClear, onClose, height }: OutputConsoleProps) {

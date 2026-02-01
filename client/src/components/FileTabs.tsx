@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect} from "react";
-import type { folderStructureData } from "../types/types";
+import type { folderStructureData } from "../../../shared/types";
 import { X, ChevronRight } from "lucide-react";
 
 export default function FileTabs({data, getPath, handleOpenTab, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId,
@@ -37,7 +37,7 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], get
                 const isActive = itemId === openedId;
 
                 if (!item) return null;
-                
+
                 return (
                     <div
                     key={itemId}

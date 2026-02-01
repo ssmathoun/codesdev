@@ -1,5 +1,5 @@
 import { Search, FileCode } from "lucide-react";
-import type { folderStructureData, CommandPaletteProps } from "../types/types";
+import type { CommandPaletteProps } from "../../types/types";
 
 export default function CommandPalette({ isOpen, onClose, query, setQuery, results, onSelect, getPath, itemLookup }: CommandPaletteProps) {
     if (!isOpen) return null;

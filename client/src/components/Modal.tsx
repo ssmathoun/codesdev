@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import type { ModalProps } from '../types/types';
+import type { ModalProps } from '../../types/types';
 import { X } from 'lucide-react';
 
 export default function Modal({ isOpen, onClose, title, children }: ModalProps) {

@@ -1,6 +1,6 @@
 import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, LogOut, Settings, Save, History} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import type { NavbarProps } from "../types/types";
+import type { NavbarProps } from "../../types/types";
 import { AVATAR_MAP } from "../constants/avatars";
 
 export default function Navbar({ 
