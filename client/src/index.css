@@ -57,39 +57,40 @@
       }
   }
 
-  /* --- Yjs Remote Cursors & Selections --- */
+  /* client/src/index.css */
 
 .yRemoteSelection {
-  background-color: rgba(220, 38, 38, 0.2); /* Matches your ide-accent */
+  background-color: rgba(220, 38, 38, 0.1); 
 }
 
 .yRemoteSelectionHead {
   position: absolute;
-  border-left: var(--color-ide-accent) solid 2px;
-  border-top: var(--color-ide-accent) solid 2px;
-  border-bottom: var(--color-ide-accent) solid 2px;
+  /* 🚀 We leave 'border-color' empty here so the JS can inject it */
+  border-left: solid 2px;
+  border-top: solid 2px;
+  border-bottom: solid 2px;
   height: 100%;
   box-sizing: border-box;
   animation: cursor-blink 1s steps(1) infinite; 
 }
 
-/* The name tag that floats above the cursor */
 .yRemoteSelectionHead::after {
   position: absolute;
-  content: attr(data-user);
-  background: var(--color-ide-accent);
+  /* 🚀 This pulls the 'name' from awareness automatically */
+  content: attr(data-user); 
+  
+  /* 🚀 This pulls the color injected by the JS */
+  background-color: inherit; 
+  
   color: white;
   padding: 0px 6px;
   border-radius: 2px;
   font-size: 10px;
-  top: -16px;
+  top: -18px;
   left: -2px;
   white-space: nowrap;
   font-family: var(--font-sans);
   font-weight: 600;
   pointer-events: none;
-}
-
-@keyframes cursor-blink {
-  50% { opacity: 0; }
+  z-index: 100;
 }

@@ -88,6 +88,21 @@ export default function CodeEditor({
         }
   
         const binding = new MonacoBinding(yText, model, new Set([editor]), awareness);
+
+        // Manually apply colors to the remote cursor elements
+        awareness.on('change', () => {
+          const heads = document.querySelectorAll('.yRemoteSelectionHead') as NodeListOf<HTMLElement>;
+          heads.forEach((head) => {
+            const remoteStates = Array.from(awareness.getStates().values());
+            const remoteUser = remoteStates.find(s => s.user && s.user.name === head.getAttribute('data-user'));
+            
+            if (remoteUser?.user?.color) {
+              head.style.borderColor = remoteUser.user.color;
+              head.style.backgroundColor = remoteUser.user.color;
+            }
+          });
+        });
+
         pooled = { model, binding };
         modelPool.current.set(modelKey, pooled);
       }

@@ -68,10 +68,21 @@ class User(db.Model):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_id: Mapped[Optional[str]] = mapped_column(String(50), default="default")
     avatar_url: Mapped[Optional[str]] = mapped_column(Text)
-    
-    # Explicit 2.0 relationship
     projects: Mapped[List["Project"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
 
+class ProjectMember(db.Model):
+    __tablename__ = 'project_members'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey('projects.id', ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+    # Roles: 'owner', 'editor', 'viewer'
+    role: Mapped[str] = mapped_column(String(20), default='viewer')
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    project: Mapped["Project"] = relationship(back_populates="members")
+    user: Mapped["User"] = relationship()
+    
 class Project(db.Model):
     __tablename__ = 'projects'
 
@@ -83,6 +94,7 @@ class Project(db.Model):
 
     owner: Mapped["User"] = relationship(back_populates="projects")
     versions: Mapped[List["Version"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    members: Mapped[List["ProjectMember"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 class TokenBlocklist(db.Model):
     __tablename__ = 'token_blocklist'
@@ -159,31 +171,41 @@ def logout():
 @jwt_required()
 def get_projects():
     current_user_id = int(get_jwt_identity())
-    user_projects = db.session.scalars(select(Project).filter_by(user_id=current_user_id)).all()
+    
+    # Query projects where the user is a member
+    memberships = db.session.scalars(
+        select(ProjectMember).filter_by(user_id=current_user_id)
+    ).all()
+    
     return jsonify([{
-        "id": p.id, 
-        "name": p.name, 
-        "file_tree": p.file_tree,
-        "created_at": p.created_at.isoformat() + 'Z'
-    } for p in user_projects]), 200
+        "id": m.project.id, 
+        "name": m.project.name, 
+        "role": m.role, # Tell the UI if they are an editor/viewer
+        "owner_name": m.project.owner.username,
+        "created_at": m.project.created_at.isoformat() + 'Z'
+    } for m in memberships]), 200
 
-@app.route('/api/projects/<int:project_id>', methods=['GET']) # MUST include GET
+@app.route('/api/projects/<int:project_id>', methods=['GET'])
 @jwt_required()
 def get_single_project(project_id):
     current_user_id = int(get_jwt_identity())
     
-    # Ensure the project belongs to the logged-in user
-    project = db.session.scalar(
-    select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+    # Check if the user has any membership record for this project
+    membership = db.session.scalar(
+        select(ProjectMember).where(
+            ProjectMember.project_id == project_id, 
+            ProjectMember.user_id == current_user_id
+        )
     )
-    if not project:
-        return jsonify({"msg": "Project not found"}), 404
+    
+    if not membership:
+        return jsonify({"msg": "This project is private or you do not have access."}), 403
     
     return jsonify({
-        "id": project.id,
-        "name": project.name,
-        "file_tree": project.file_tree,
-        "created_at": project.created_at.isoformat() + 'Z' if project.created_at else None
+        "id": membership.project.id,
+        "name": membership.project.name,
+        "file_tree": membership.project.file_tree,
+        "role": membership.role
     }), 200
 
 @app.route('/api/projects', methods=['POST'])
@@ -195,12 +217,25 @@ def create_project():
     new_project = Project(
         name=data.get('name', 'untitled-project'),
         user_id=current_user_id,
-        file_tree=[] # Initial empty workspace
+        file_tree=[] 
     )
-    
     db.session.add(new_project)
+    db.session.flush() # Flushes to DB to get new_project.id
+
+    # Auto-add creator as the Owner member
+    owner_member = ProjectMember(
+        project_id=new_project.id,
+        user_id=current_user_id,
+        role='owner'
+    )
+    db.session.add(owner_member)
     db.session.commit()
-    return jsonify({"id": new_project.id, "name": new_project.name, "created_at": new_project.created_at.isoformat() + 'Z'}), 201
+    
+    return jsonify({
+        "id": new_project.id, 
+        "name": new_project.name, 
+        "role": "owner"
+    }), 201
 
 @app.route('/api/me', methods=['GET'])
 @jwt_required()
@@ -371,6 +406,43 @@ def get_version_details(version_id):
         "file_tree_snapshot": version.file_tree_snapshot,
         "created_at": version.created_at.isoformat()
     }), 200
+
+@app.route('/api/projects/<int:project_id>/share', methods=['POST'])
+@jwt_required()
+def share_project(project_id):
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json()
+    
+    # Verify the requester is the Owner
+    check = db.session.scalar(
+        select(ProjectMember).filter_by(project_id=project_id, user_id=current_user_id, role='owner')
+    )
+    if not check:
+        return jsonify({"msg": "Only owners can manage permissions"}), 403
+
+    # Find the user to invite
+    target_user = db.session.scalar(select(User).filter_by(email=data.get('email')))
+    if not target_user:
+        return jsonify({"msg": "User not found"}), 404
+
+    # Add to members (or update if already there)
+    existing = db.session.scalar(
+        select(ProjectMember).filter_by(project_id=project_id, user_id=target_user.id)
+    )
+    
+    if existing:
+        existing.role = data.get('role', 'viewer')
+    else:
+        new_member = ProjectMember(
+            project_id=project_id,
+            user_id=target_user.id,
+            role=data.get('role', 'viewer')
+        )
+        db.session.add(new_member)
+
+    db.session.commit()
+    return jsonify({"msg": f"Access granted to {target_user.username} as {data.get('role')}"}), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5001)
