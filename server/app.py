@@ -167,7 +167,7 @@ def get_projects():
         "created_at": p.created_at.isoformat() + 'Z'
     } for p in user_projects]), 200
 
-@app.route('/api/projects/<int:project_id>', methods=['GET']) # MUST include GET
+@app.route('/api/projects/<int:project_id>', methods=['GET'])
 @jwt_required()
 def get_single_project(project_id):
     current_user_id = int(get_jwt_identity())
@@ -362,7 +362,7 @@ def get_version_details(version_id):
     version = Version.query.get_or_404(version_id)
     project = Project.query.get(version.project_id)
     
-    if str(project.user_id) != current_user_id:
+    if project.user_id != current_user_id:
         return jsonify({"msg": "Unauthorized"}), 403
 
     return jsonify({

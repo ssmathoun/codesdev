@@ -78,6 +78,7 @@ export interface NavbarProps {
     projectId: string | undefined;
     projectName: string;
     isSaving: boolean;
+    unsavedChanges: boolean;
     setIsCommandPaletteOpen: (val: boolean) => void;
     isSidebarVisible: boolean;
     setIsSidebarVisible: (val: boolean) => void;

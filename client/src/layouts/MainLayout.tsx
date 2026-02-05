@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import debounce from "lodash.debounce";
+import { Check, Loader2, AlertCircle } from "lucide-react";
 import CodeEditor from "../components/CodeEditor";
 import FileSidebar from "../components/FileSidebar";
 import ContextMenu from "../components/ContextMenu";
@@ -34,7 +35,8 @@ export default function MainLayout() {
     const [versionToRestore, setVersionToRestore] = useState<number | null>(null);
     const [previewData, setPreviewData] = useState<folderStructureData[] | null>(null);
     const [activePreviewId, setActivePreviewId] = useState<number | null>(null);
-
+    const [isSaving, setIsSaving] = useState(false);
+    const [unsavedChanges, setUnsavedChanges] = useState(false);
     const [projectName, setProjectName] = useState<string>(
         location.state?.projectName || "Loading Project..."
     );
@@ -259,6 +261,26 @@ export default function MainLayout() {
         }
     };
 
+    // Browser Guard: Prevents accidental refresh if data is pending
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (unsavedChanges || isSaving) {
+                // Standard way
+                e.preventDefault();
+                
+                // Legacy support (required for Chrome to show the prompt)
+                // We cast to 'any' to silence the deprecation warning
+                (e as any).returnValue = ''; 
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [unsavedChanges, isSaving]);
+
     const saveToBackend = useCallback(
         debounce(async (updatedTree: folderStructureData[]) => {
             setIsSaving(true);
@@ -271,6 +293,10 @@ export default function MainLayout() {
                     credentials: 'include'
                 });
     
+                if (res.ok) {
+                    setUnsavedChanges(false);
+                }
+
                 // Automatic Versioning
                 const now = Date.now();
                 if (now - lastSnapshotTime > SNAPSHOT_INTERVAL) {
@@ -293,6 +319,8 @@ export default function MainLayout() {
     );
 
     const updateDataAndSync = (updateFn: (prev: folderStructureData[]) => folderStructureData[]) => {
+        setUnsavedChanges(true);
+
         setData(prevData => {
             const nextData = updateFn(prevData);
             saveToBackend(nextData);
@@ -337,8 +365,6 @@ export default function MainLayout() {
             return deleteItemRecursively(prevData);
         });
     };
-
-    const [isSaving, setIsSaving] = useState(false);
 
     const updateFileContent = (id: number, newContent: string): void => {
         updateDataAndSync((prevData) => {
@@ -976,6 +1002,7 @@ export default function MainLayout() {
                     projectId={projectId}
                     projectName={projectName}
                     isSaving={isSaving} 
+                    unsavedChanges={unsavedChanges}
                     setIsCommandPaletteOpen={setIsCommandPaletteOpen}
                     isSidebarVisible={isSidebarVisible} 
                     setIsSidebarVisible={setIsSidebarVisible}

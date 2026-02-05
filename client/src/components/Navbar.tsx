@@ -1,4 +1,4 @@
-import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, LogOut, Settings, Save, History} from "lucide-react";
+import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, LogOut, Settings, Save, History, Check, Loader2, AlertCircle} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { NavbarProps } from "../types/types";
 import { AVATAR_MAP } from "../constants/avatars";
@@ -8,6 +8,7 @@ export default function Navbar({
     projectId, 
     projectName, 
     isSaving, 
+    unsavedChanges,
     setIsCommandPaletteOpen, 
     isSidebarVisible, 
     setIsSidebarVisible, 
@@ -54,12 +55,24 @@ export default function Navbar({
                     <h1 className="tracking-tight">codesdev</h1>
                 </Link>
 
-                {isSaving ?
-                <div className="flex items-center gap-2 opacity-100 cursor-pointer transition-opacity ml-4">
-                    <Cloud size={24} strokeWidth={1.5} />
-                    <span className="text-sm">saving...</span>
+                <div className="ml-4 flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider px-3 py-1 rounded-full bg-black/20 border border-white/5 transition-all select-none">
+                    {isSaving ? (
+                        <>
+                            <Loader2 size={12} className="animate-spin text-white" />
+                            <span className="text-white opacity-90">Syncing...</span>
+                        </>
+                    ) : unsavedChanges ? (
+                        <>
+                            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                            <span className="text-orange-400">Unsaved</span>
+                        </>
+                    ) : (
+                        <>
+                            <Check size={12} className="text-green-400" />
+                            <span className="text-green-400">Saved</span>
+                        </>
+                    )}
                 </div>
-                : null}
 
                 <div className="flex items-center gap-4 ml-4">
                     <button 
