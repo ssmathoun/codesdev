@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Service 1: The Database
+  db:
+    container_name: codesdev-db
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: codesdev_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Service 2: The Backend (Flask)
+  server:
+    container_name: codesdev-server
+    build: ./server
+    ports:
+      - "5001:5001"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://user:password@db:5432/codesdev_db
+      CORS_ORIGIN: http://localhost
+    volumes:
+      - ./server:/app
+
+  # Service 3: The Frontend (React + Nginx)
+  client:
+    container_name: codesdev-clientdocker
+    build: ./client
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:

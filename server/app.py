@@ -52,11 +52,10 @@ db = SQLAlchemy(app, model_class=Base)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
+frontend_url = os.environ.get("CORS_ORIGIN", "http://localhost:5173")
+
 # Configure CORS to allow cookies from the React Spoke
-CORS(app, supports_credentials=True, origins=[
-    "http://localhost:5173",
-    "http://127.0.0.1:5173"
-], methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+CORS(app, supports_credentials=True, origins=frontend_url, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Database Models
 class User(db.Model):
@@ -373,4 +372,4 @@ def get_version_details(version_id):
     }), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5001)
