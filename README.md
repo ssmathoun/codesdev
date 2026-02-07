@@ -1,98 +1,70 @@
-# CodesDev | Professional Cloud-Integrated IDE
+# Codesdev | Cloud Engineering IDE
 
-> **⚠️ Status: Active Development** > CodesDev is currently in **Active Development**. 
+> **⚠️ Status: Active Development**
+> *Codesdev is a fully containerized, full-stack development environment designed for high-performance code management and persistence.*
 
-**CodesDev** is a real-time collaborative coding environment for developers, built to provide a seamless **"local-feel"** experience directly in the browser.
+**Codesdev** is a web-based IDE that brings a "local-feel" coding experience to the browser. Built with a **React/TypeScript** frontend and a **Python (Flask)** backend, it leverages a virtualized file system for seamless project organization and cloud-based persistence.
 
 ---
 
-## 🚀 Key Features
-
-### 🕒 Time Travel Versioning
-Never lose a line of code again. CodesDev automatically captures snapshots of your workspace every 10 minutes. 
-* **Checkpoints:** Create named milestones before major refactors.
-* **Historical Preview:** Browse the entire file tree of a previous version without affecting your current live state.
-* **Instant Restoration:** Revert your entire workspace to any point in time with a single click.
-
-### 📁 Virtual File System (VFS)
-Built on a high-performance **PostgreSQL JSONB** backbone, the file tree handles complex nested structures with zero latency. 
-* **Recursive Management:** Create, rename, and move files/folders within a virtualized environment.
-* **Smart Tabs:** Tab-state synchronization that prunes "ghost" files during history navigation.
-
-### ⌨️ Intelligent Monaco Editor
-Powered by the same core as VS Code, providing:
-* **Multi-Language Detection:** Automatic syntax highlighting for `.py`, `.js`, `.ts`, `.tsx`, `.html`, `.css`, and more.
-* **IDE Feel:** Customized sidebar gutters with high-precision resize handles and a unified output console.
-
-> **Note:** Advanced features like **Real-time Collaboration** and **Cloud Execution** are currently in development.
-
-
-## 🛠 Tech Stack
+## 🛠 Tech Stack & Infrastructure
 
 | Layer | Technology |
 | :--- | :--- |
-| **Frontend** | React, TypeScript, Tailwind CSS, Monaco Editor |
-| **Backend** | Flask (Python), SQLAlchemy, Flask-JWT-Extended |
-| **Database** | PostgreSQL (JSONB optimized for file-tree persistence) |
+| **Frontend** | React 18, TypeScript, Tailwind CSS, Monaco Editor |
+| **Backend** | Flask (Python), SQLAlchemy, JWT Authentication |
+| **Database** | PostgreSQL (JSONB optimized for VFS persistence) |
+| **DevOps** | **Docker, Docker Compose, AWS (Planned Deployment)** |
 
 ---
 
-## 💻 Local Setup Instructions
+## 📦 Containerized Setup (Recommended)
+
+The entire CodesDev environment is containerized using **Docker**, ensuring consistency across all development and production environments.
 
 ### Prerequisites
-* **Node.js** (v18.0 or higher)
-* **Python** (v3.10 or higher)
-* **PostgreSQL** (v14 or higher)
+* **Docker** and **Docker Compose**
 
-### 1. Server (Backend)
+### One-Command Start
 ```bash
-# Navigate to server directory
-cd server
+# Clone the repository
+git clone https://github.com/ssmathoun/codesdev.git
+cd codesdev
 
-# Initialize Virtual Environment (if not already done)
-python -m venv venv
-
-# Activate Environment
-# Mac/Linux:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
-
-# Install Dependencies
-pip install -r requirements.txt
-
-# Environment Setup
-# Create a .env file in the /server directory and add:
-# DATABASE_URL=postgresql://user:password@localhost:5432/codesdev
-# SECRET_KEY=your_super_secret_key
-# JWT_SECRET_KEY=your_jwt_secret_key
-
-# Run Database Migrations
-flask db upgrade
-
-# Start Server
-flask run --port=5001
+# Launch all services (Frontend, Backend, Database)
+docker-compose up --build
 ```
 
-### 2. Client (Frontend)
-```bash
-# Navigate to client directory
-cd client
+*The IDE will be accessible at [http://localhost](http://localhost) (Frontend) and [http://localhost:5001](http://localhost:5001) (API).*
 
-# Install Dependencies
-npm install
+## 🚀 Key Features
 
-# Start Development Server
-npm run dev
-```
+### 📁 Virtual File System (VFS)
+A specialized file management engine built on **PostgreSQL JSONB** to handle complex, nested structures with high efficiency.
+* **Recursive Management:** Create, rename, and move files/folders within a virtualized directory tree.
+* **State Persistence:** Workspace layouts and file states are synchronized to ensure you pick up exactly where you left off.
 
+### ⌨️ Professional-Grade Editor
+Powered by the **Monaco Editor** engine for a robust coding experience:
+* **Intelligent Highlighting:** Native support for Python, JavaScript, TypeScript, HTML, CSS and more.
+* **Unified Console:** Integrated system feedback console for file operations and environment status.
+
+### 🕒 Snapshot Versioning
+Automated checkpointing that allows users to browse and manage historical versions of their workspace without interfering with the live environment.
+
+---
+
+## 🏗 System Architecture
+* **Container Isolation:** Decoupled service architecture using **Docker** to separate the UI, Logic, and Data layers.
+* **Virtualized Storage:** Optimized relational queries to map nested file structures into a high-performance React frontend.
+* **Security:** Secure user sessions managed via **JWT-based authentication**.
+
+---
 
 ## 🗺 Roadmap
-
-- [ ] **Secure Sandbox:** Execution of code via isolated Docker-in-Docker containers to ensure system safety and resource isolation.
-- [ ] **Real-time Sync:** Multi-user collaboration and presence using WebSockets (Socket.io) and Redis for scalable message broadcasting.
-- [ ] **Deployment:** Fully automated CI/CD pipelines via GitHub Actions for seamless staging and production deployments.
-- [ ] **Conflict Resolution:** Implementation of CRDTs (Conflict-free Replicated Data Types) to handle seamless concurrent editing without data loss.
+- [ ] **Secure Execution Sandbox:** Isolated container environment for running user-submitted code safely.
+- [ ] **CI/CD Pipeline:** Automated deployment workflows via **GitHub Actions**.
+- [ ] **Real-time Collaboration:** WebSocket integration for multi-user presence (Development Branch: `feat-collaboration`).
 
 ---
 
