@@ -45,6 +45,9 @@ export default function MainLayout() {
     );
     const [isEditing, setIsEditing] = useState(false);
 
+    // Centralized Read-Only Logic
+    const isReadOnly = !!previewData || (isPublic && !isOwner);
+
     // Helper for CSRF
     const getCSRF = () => {
         const match = document.cookie.match(/csrf_access_token=([^;]+)/);
@@ -57,8 +60,8 @@ export default function MainLayout() {
     
         try {
             // Persist to backend
-            const response = await fetch(`http://localhost:5001/api/projects/${projectId}/rename`, {
-                method: 'PATCH',
+            const response = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
+                method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': getCSRF() 
@@ -221,6 +224,7 @@ export default function MainLayout() {
                     setIsOwner(project.is_owner);
                 } else {
                     navigate("/home"); // Redirect if project not found
+                    setLogs(prev => [...prev, `Critical Error: Server returned ${res.status}`]); // TESTING
                 }
             } catch (error) {
                 setLogs(prev => [...prev, "Error: Failed to connect to persistence layer."]);
@@ -228,7 +232,7 @@ export default function MainLayout() {
                 setIsLoading(false);
             }
         };
-        fetchProjectData();
+        if (projectId) fetchProjectData();
     }, [projectId, navigate]);
 
     const toggleShare = async (newStatus: boolean) => {
@@ -332,6 +336,8 @@ export default function MainLayout() {
 
     const saveToBackend = useCallback(
         debounce(async (updatedTree: folderStructureData[]) => {
+            if (isReadOnly) return; // Prevent saving in Read-Only
+
             setIsSaving(true);
             try {
                 // Regular Live Save
@@ -364,10 +370,11 @@ export default function MainLayout() {
                 setIsSaving(false);
             }
         }, 2000),
-        [projectId, lastSnapshotTime, activeTab]
+        [projectId, lastSnapshotTime, activeTab, isReadOnly]
     );
 
     const updateDataAndSync = (updateFn: (prev: folderStructureData[]) => folderStructureData[]) => {
+        if (isReadOnly) return;
         setUnsavedChanges(true);
 
         setData(prevData => {
@@ -695,6 +702,9 @@ export default function MainLayout() {
 
     const handleContextMenu = (e: React.MouseEvent, item: folderStructureData) => {
         e.stopPropagation();
+        
+        if (isReadOnly) return; // Prevent context menu in read-only mode
+
         const rect = e.currentTarget.getBoundingClientRect();
 
         const menuHeight = 150;
@@ -776,6 +786,36 @@ export default function MainLayout() {
 
     };
 
+    const handleFork = async () => {
+        try {
+            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/fork`, {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "X-CSRF-TOKEN": getCSRF() 
+                },
+                credentials: "include"
+            });
+            
+            if (res.status === 401) {
+                window.location.href = "/login"; // Hard redirect
+                return;
+            }
+
+            if (res.ok) {
+                const data = await res.json();
+
+                if (data.id) {
+                    window.location.href = `/editor/${data.id}`;
+                }
+            } else {
+                setLogs(prev => [...prev, "Error: Fork failed."]);
+            }
+        } catch (err) {
+            console.error("Fork error:", err);
+        }
+    };
+
     const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     
@@ -811,8 +851,8 @@ export default function MainLayout() {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                 e.preventDefault();
 
-                if (previewData || (isPublic && !isOwner)) {
-                    setLogs(prev => [...prev, "System: Cannot save while in Preview Mode."]);
+                if (isReadOnly) {
+                    setLogs(prev => [...prev, "System: Cannot save while in Read-Only Mode."]);
                     return;
                 }
 
@@ -825,8 +865,8 @@ export default function MainLayout() {
                 e.preventDefault();
                 e.stopImmediatePropagation();
 
-                if (previewData || (isPublic && !isOwner)) {
-                    setLogs(prev => [...prev, "System: Cannot create files in Preview Mode."]);
+                if (isReadOnly) {
+                    setLogs(prev => [...prev, "System: Cannot create files in Read-Only Mode."]);
                     return;
                 }
 
@@ -847,7 +887,7 @@ export default function MainLayout() {
         window.addEventListener('keydown', handleKeyDown, { capture: true });
         
         return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    }, [activeFolderId, previewData, isPublic, isOwner]);
+    }, [activeFolderId, isReadOnly]);
 
     function handleOpenTab(itemId: number) {
         const path = getPath(itemId);
@@ -897,7 +937,7 @@ export default function MainLayout() {
                         onChange={(e) => handleNameChange(e.target.value)}
                     />
 
-                    {/*  Real-time Error Message */}
+                    {/* Real-time Error Message */}
                     {modalError && (
                         <span className="text-red-500 text-xs font-medium">{modalError}</span>
                     )}
@@ -946,7 +986,7 @@ export default function MainLayout() {
                         onChange={(e) => handleNameChange(e.target.value)}
                     />
 
-                    {/*  Real-time Error Message */}
+                    {/* Real-time Error Message */}
                     {modalError && (
                         <span className="text-red-500 text-xs font-medium">{modalError}</span>
                     )}
@@ -1100,7 +1140,8 @@ export default function MainLayout() {
                     setIsConsoleOpen={setIsConsoleOpen}
                     onCheckpoint={createCheckpoint}
                     onShare={() => setIsShareModalOpen(true)}
-                    isReadOnly={isPublic && !isOwner}
+                    isReadOnly={isReadOnly}
+                    onFork={handleFork}
                 />
 
                 <div className="h-full w-full flex overflow-hidden relative">
@@ -1130,7 +1171,7 @@ export default function MainLayout() {
                             ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
                     >
                         {activeTab === "files" ? (
-                            <FileSidebar data={previewData || data} readOnly={!!previewData || (isPublic && !isOwner)} projectName={previewData ? `PREVIEW: ${projectName}` : projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <FileSidebar data={previewData || data} readOnly={isReadOnly} projectName={previewData ? `PREVIEW: ${projectName}` : projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} handleRename={handleRename} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
                         ) : (
@@ -1181,7 +1222,7 @@ export default function MainLayout() {
                                 </div>
                             )}
 
-                            <CodeEditor data={previewData || data} readOnly={!!previewData || (isPublic && !isOwner)} projectName={projectName} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <CodeEditor data={previewData || data} readOnly={isReadOnly} projectName={projectName} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                         </div>

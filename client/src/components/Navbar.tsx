@@ -1,4 +1,4 @@
-import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, LogOut, Settings, Save, History, Check, Loader2, AlertCircle} from "lucide-react";
+import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, UserPlus, User, LogOut, Settings, Save, History, Check, Loader2, AlertCircle, GitFork} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import type { NavbarProps } from "../types/types";
 import { AVATAR_MAP } from "../constants/avatars";
@@ -16,7 +16,8 @@ export default function Navbar({
     setIsConsoleOpen,
     onCheckpoint,
     onShare,
-    isReadOnly = false
+    isReadOnly = false,
+    onFork
 }: NavbarProps) {
 
     const navigate = useNavigate();
@@ -112,14 +113,24 @@ export default function Navbar({
                 {/* Action Icons */}
                 <div className="flex items-center gap-4 mr-2">
                     {/* Opens the version naming modal */}
-                    {!isReadOnly && (
+                    {!isReadOnly ? (
                         <button 
                             onClick={onCheckpoint}
-                            title="Create Checkpoint (Snapshot)"
-                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white/90 border border-white/5 transition-all active:scale-95"
+                            title="Create Checkpoint"
+                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white/90 border border-white/5"
                         >
                             <Save size={16} strokeWidth={2} />
                             <span className="hidden lg:block">Checkpoint</span>
+                        </button>
+                    ) : (
+                        /* Visitor Action: Fork Button */
+                        <button 
+                            onClick={onFork}
+                            title="Fork this Project"
+                            className="flex items-center gap-2 bg-blue-900 hover:bg-blue-700 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+                        >
+                            <GitFork size={16} strokeWidth={2} />
+                            <span className="hidden lg:block">Fork</span>
                         </button>
                     )}
 

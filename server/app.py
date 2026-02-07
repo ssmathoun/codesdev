@@ -10,7 +10,7 @@ from flask_jwt_extended import (
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import select, String, Integer, DateTime, ForeignKey, Text, Boolean, func, delete
+from sqlalchemy import select, String, Integer, DateTime, ForeignKey, Text, Boolean, func, delete, or_
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 from sqlalchemy.orm.attributes import flag_modified
 from dotenv import load_dotenv
@@ -182,6 +182,8 @@ def get_single_project(project_id):
     
     if not project:
         return jsonify({"msg": "Project not found"}), 404
+    
+    print(f"DEBUG CHECK: Token User={current_user_id} (Type: {type(current_user_id)}) vs Project Owner={project.user_id}", flush=True)
     
     # Permission Logic
     is_owner = False
@@ -406,6 +408,44 @@ def toggle_project_visibility(project_id):
     db.session.commit()
     
     return jsonify({"msg": "Visibility updated", "is_public": project.is_public}), 200
+
+@app.route('/api/projects/<int:project_id>/fork', methods=['POST'])
+@jwt_required()
+def fork_project(project_id):
+    current_user_id = int(get_jwt_identity())
+    
+    # Get the original project
+    # It must be public or owned by the current user
+    source_project = db.session.scalar(
+        select(Project).where(
+            Project.id == project_id,
+            or_(Project.is_public == True, Project.user_id == current_user_id)
+        )
+    )
+    
+    if not source_project:
+        return jsonify({"msg": "Project not found or private"}), 404
+
+    # Create a Copy
+    new_name = f"{source_project.name} (Fork)"
+    if source_project.user_id == current_user_id:
+        new_name = f"{source_project.name} (Copy)"
+
+    forked_project = Project(
+        name=new_name,
+        user_id=current_user_id,            # Assign to the person clicking "Fork"
+        file_tree=source_project.file_tree, # Copy the file structure
+        is_public=False                     # Reset to Private
+    )
+    
+    db.session.add(forked_project)
+    db.session.commit()
+    
+    return jsonify({
+        "msg": "Fork created", 
+        "id": forked_project.id, 
+        "name": forked_project.name
+    }), 201
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

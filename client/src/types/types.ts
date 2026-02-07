@@ -87,6 +87,7 @@ export interface NavbarProps {
     onCheckpoint: () => void;
     onShare: () => void;
     isReadOnly?: boolean;
+    onFork: () => void;
 }
 
 export interface Version {
