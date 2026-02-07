@@ -61,11 +61,13 @@ export default function FileSidebar({
     isResizing: boolean;
     handleMouseDown: (e: React.MouseEvent) => void;
 }) {
-    function addItem(e: React.MouseEvent, itemType: "file" | "folder") {
+    // UPDATED: Added forceRoot parameter
+    function addItem(e: React.MouseEvent, itemType: "file" | "folder", forceRoot = false) {
         e.stopPropagation();
         setIsAddModalOpen(true);
         setNewItemType(itemType);
-        setPendingParentId(activeFolderId);
+        // If forceRoot is true, we ignore activeFolderId and set it to null (Root)
+        setPendingParentId(forceRoot ? null : activeFolderId);
     }
 
     return (
@@ -83,8 +85,9 @@ export default function FileSidebar({
                 {!readOnly ? (
                     <div className="flex items-center justify-end mx-2 mb-1 gap-2">
                         <button
-                            title="New File (Ctrl+N)"
-                            onClick={(e) => addItem(e, "file")}
+                            title="New File in Root (Ctrl+N)"
+                            // Pass true to force creation in root
+                            onClick={(e) => addItem(e, "file", true)}
                         >
                             <FilePlus
                                 size={18}
@@ -92,8 +95,9 @@ export default function FileSidebar({
                             />
                         </button>
                         <button
-                            title="New Folder"
-                            onClick={(e) => addItem(e, "folder")}
+                            title="New Folder in Root"
+                            // Pass true to force creation in root
+                            onClick={(e) => addItem(e, "folder", true)}
                         >
                             <FolderPlus
                                 size={18}
@@ -104,7 +108,16 @@ export default function FileSidebar({
                 ) : null}
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-behavior-contain custom-scrollbar relative">
+            {/* Added onClick to handle deselecting folders when clicking empty space */}
+            <div 
+                className="flex-1 overflow-y-auto overflow-x-hidden overscroll-behavior-contain custom-scrollbar relative"
+                onClick={(e) => {
+                    // Only deselect if they clicked the blank space, not a folder item
+                    if (e.target === e.currentTarget && !readOnly) {
+                        setActiveFolderId(null);
+                    }
+                }}
+            >
                 {data.length === 0 ? (
                     <div className="flex flex-col items-center mt-20 px-2 text-center select-none group">
                         <div className="p-4 rounded-full bg-white/5 mb-3 border border-transparent group-hover:border-ide-accent/20 group-hover:bg-ide-accent/5 transition-all duration-300">
@@ -124,7 +137,7 @@ export default function FileSidebar({
                             <div className="flex items-center gap-2">
                                 {/* Create File */}
                                 <button 
-                                    onClick={(e) => addItem(e, "file")}
+                                    onClick={(e) => addItem(e, "file", true)}
                                     className="text-[11px] font-medium text-ide-accent border border-ide-accent/30 bg-ide-accent/5 px-3 py-1.5 rounded hover:bg-ide-accent hover:text-white hover:border-ide-accent transition-all duration-200"
                                 >
                                     Create File
@@ -132,7 +145,7 @@ export default function FileSidebar({
 
                                 {/* Create Folder */}
                                 <button 
-                                    onClick={(e) => addItem(e, "folder")}
+                                    onClick={(e) => addItem(e, "folder", true)}
                                     title="Create Folder"
                                     className="text-[11px] font-medium text-zinc-400 border border-zinc-700/50 bg-white/5 px-3 py-1.5 rounded hover:bg-zinc-700 hover:text-white hover:border-zinc-600 transition-all duration-200"
                                 >

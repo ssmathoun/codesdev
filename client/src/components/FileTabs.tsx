@@ -2,8 +2,8 @@ import { useCallback, useRef, useEffect} from "react";
 import type { folderStructureData } from "../types/types";
 import { X, ChevronRight } from "lucide-react";
 
-export default function FileTabs({data, getPath, handleOpenTab, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId,
-expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], getPath: (id: number) => number[], handleOpenTab: (id: number) => void, openedId: number | null, handleOpenedId: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void , expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
+export default function FileTabs({data, getPath, projectName, handleOpenTab, openedId, handleOpenedId, openedFileTabsId, handleOpenedFileTabsId,
+expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], getPath: (id: number) => number[], projectName: string, handleOpenTab: (id: number) => void, openedId: number | null, handleOpenedId: (id: number) => void, openedFileTabsId: number[], handleOpenedFileTabsId: (id: number, toggle?: boolean) => void , expandedIds: number[], handleExpandedIds: (id: number) => void, itemLookup: Map<number, folderStructureData>}) {
 
     const tabRefs = useRef<Map<number, HTMLDivElement>>(new Map());
     const breadcrumbRef = useRef<HTMLDivElement>(null);
@@ -60,7 +60,7 @@ expandedIds, handleExpandedIds, itemLookup} : { data: folderStructureData[], get
             
             {/* Breadcrumbs */}
             <div ref={breadcrumbRef} className="flex h-4 bg-[#1E1E1E] text-zinc-400 items-center text-[14px] px-3 py-3 whitespace-nowrap overflow-x-auto overflow-y-hidden flex-nowrap custom-scrollbar select-none">
-            <span className="select-none cursor-default">project name</span>
+            <span className="select-none cursor-default">{projectName}</span>
             {getPath(openedId ?? -1).length > 0 ? <ChevronRight size={20} strokeWidth={1} className="inline shrink-0"/> : null}
             
                 {getPath(openedId ?? -1).map((id, index, array) => {

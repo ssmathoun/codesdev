@@ -1089,7 +1089,7 @@ export default function MainLayout() {
                                 </div>
                             )}
 
-                            <CodeEditor data={previewData || data} readOnly={!!previewData} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <CodeEditor data={previewData || data} readOnly={!!previewData} projectName={projectName} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                         </div>

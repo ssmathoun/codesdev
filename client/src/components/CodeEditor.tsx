@@ -9,6 +9,7 @@ import WelcomePage from "./WelcomePage";
 export default function CodeEditor({
   data,
   readOnly = false,
+  projectName,
   getPath,
   handleOpenTab,
   isSaving,
@@ -25,6 +26,7 @@ export default function CodeEditor({
 }: {
   data: folderStructureData[];
   readOnly?: boolean;
+  projectName: string;
   getPath: (id: number) => number[];
   handleOpenTab: (id: number) => void;
   updateFileContent: (id: number, newContent: string) => void;
@@ -162,6 +164,7 @@ export default function CodeEditor({
         <FileTabs
           data={data}
           getPath={getPath}
+          projectName={projectName}
           handleOpenTab={handleOpenTab}
           openedId={openedId}
           handleOpenedId={handleOpenedId}

@@ -55,7 +55,10 @@ export default function FolderStructure({
     setActiveFolderId: (prev: number | null) => void,
 }) {
     
-    function handleClick(item: folderStructureData) {
+    // Updated to accept event 'e' and stop propagation
+    function handleClick(e: React.MouseEvent, item: folderStructureData) {
+        e.stopPropagation(); // <--- CRITICAL FIX: Prevents clicking a folder from triggering the sidebar's "Deselect"
+        
         handleExpandedIds(item.id);
         handleIsIdOpened(item.id);
         
@@ -79,7 +82,7 @@ export default function FolderStructure({
             <li key={item.id}>
                 {item.type === "file" ? 
                 
-                    <div onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 34}px`}} className={(item.id === isIdOpened) ? "bg-[#dc26268e] whitespace-nowrap flex gap-1 items-center group justify-between" : "flex gap-1 whitespace-nowrap hover:bg-[#2E2E2E] items-center group justify-between"}>
+                    <div onClick={(e) => handleClick(e, item)} style={{ paddingLeft: `${depth * 16 + 34}px`}} className={(item.id === isIdOpened) ? "bg-[#dc26268e] whitespace-nowrap flex gap-1 items-center group justify-between cursor-pointer" : "flex gap-1 whitespace-nowrap hover:bg-[#2E2E2E] items-center group justify-between cursor-pointer"}>
                         <span className="mr-2 truncate">
                             {item.name}
                         </span>
@@ -98,7 +101,7 @@ export default function FolderStructure({
                 
                 : (
                     <>
-                        <div onClick={() => handleClick(item)} style={{ paddingLeft: `${depth * 16 + 12}px`}} className={(item.id === activeFolderId && !readOnly) ? "group bg-[#2e2e2e] flex gap-1 whitespace-nowrap items-center" : "group flex gap-1 hover:bg-[#2e2e2e] items-center whitespace-nowrap"}>
+                        <div onClick={(e) => handleClick(e, item)} style={{ paddingLeft: `${depth * 16 + 12}px`}} className={(item.id === activeFolderId && !readOnly) ? "group bg-[#2e2e2e] flex gap-1 whitespace-nowrap items-center cursor-pointer" : "group flex gap-1 hover:bg-[#2e2e2e] items-center whitespace-nowrap cursor-pointer"}>
                             {isOpen ? <ChevronDown size={18} className="shrink-0"/> : <ChevronRight size={18} className="shrink-0"/>}
                             <span className="mr-2 truncate">
                                 {item.name}
