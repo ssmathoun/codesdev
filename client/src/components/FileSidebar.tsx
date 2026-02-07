@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { folderStructureData } from "../types/types";
 import FolderStructure from "./FolderStructure";
 import { FolderPlus, FilePlus } from "lucide-react";
@@ -21,6 +22,7 @@ export default function FileSidebar({
     setIsDeleteModalOpen,
     openedId,
     handleOpenedId,
+    handleRename,
     openedFileTabsId,
     handleOpenedFileTabsId,
     expandedIds,
@@ -50,6 +52,7 @@ export default function FileSidebar({
     addItemToData: (item: folderStructureData) => void;
     openedId: number | null;
     handleOpenedId: (id: number) => void;
+    handleRename: (newName: string) => void;
     openedFileTabsId: number[];
     handleOpenedFileTabsId: (id: number, toggle?: boolean) => void;
     expandedIds: number[];
@@ -61,7 +64,25 @@ export default function FileSidebar({
     isResizing: boolean;
     handleMouseDown: (e: React.MouseEvent) => void;
 }) {
-    // UPDATED: Added forceRoot parameter
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [tempName, setTempName] = useState(projectName);
+
+    // Sync tempName if projectName changes from outside (like initial load)
+    useEffect(() => {
+        setTempName(projectName);
+    }, [projectName]);
+
+    const submitRename = () => {
+        setIsEditing(false);
+        // Only trigger update if name actually changed and isn't empty
+        if (tempName.trim() && tempName !== projectName) {
+            handleRename(tempName);
+        } else {
+            setTempName(projectName); // Revert if empty/same
+        }
+    };
+    
     function addItem(e: React.MouseEvent, itemType: "file" | "folder", forceRoot = false) {
         e.stopPropagation();
         setIsAddModalOpen(true);
@@ -71,44 +92,61 @@ export default function FileSidebar({
     }
 
     return (
-        /* Sidebar */
+        /* Sidebar Container */
         <aside
-            className={`flex flex-col relative h-full w-full bg-ide-bg text-white transition-none shrink-0 whitespace-nowrap
+            className={`flex flex-col relative h-full w-full bg-ide-bg text-white transition-none shrink-0 whitespace-nowrap border-r border-ide-border select-none
                 ${!isSidebarVisible ? "invisible overflow-hidden" : "visible"}`}
                 style={{ width: 'inherit' }}
         >
-            <div className="shrink-0">
-                <h2 className="my-4 mx-2 text-center text-xl font-normal tracking-normal truncate">
-                    {projectName}
-                </h2>
+            {/* Header Section */}
+            <div className="shrink-0 pt-6 pb-2 px-2">
+                {isEditing && !readOnly ? (
+                    <input
+                        autoFocus
+                        className="w-full bg-[#1e1e1e] text-white text-center border-b border-ide-accent outline-none text-sm font-bold uppercase tracking-wider py-1"
+                        value={tempName}
+                        onChange={(e) => setTempName(e.target.value)}
+                        onBlur={submitRename}
+                        onKeyDown={(e) => e.key === 'Enter' && submitRename()}
+                    />
+                ) : (
+                    <h2 
+                        className={`text-sm font-bold text-center truncate tracking-wider uppercase py-1 border-b border-transparent ${!readOnly ? 'cursor-text hover:text-ide-accent/80 transition-colors' : ''}`}
+                        onClick={() => !readOnly && setIsEditing(true)}
+                        title={!readOnly ? "Click to Rename Project" : ""}
+                    >
+                        {projectName}
+                    </h2>
+                )}
                 
-                {!readOnly ? (
-                    <div className="flex items-center justify-end mx-2 mb-1 gap-2">
+                {/* Root Action Buttons */}
+                {!readOnly && (
+                    <div className="flex items-center justify-end mt-2 mr-1 gap-2 opacity-100 transition-opacity">
                         <button
                             title="New File in Root (Ctrl+N)"
-                            // Pass true to force creation in root
                             onClick={(e) => addItem(e, "file", true)}
+                            className="p-1 rounded hover:bg-zinc-800 transition-colors"
                         >
                             <FilePlus
-                                size={18}
+                                size={16}
                                 className="text-zinc-500 hover:text-white"
                             />
                         </button>
                         <button
                             title="New Folder in Root"
-                            // Pass true to force creation in root
                             onClick={(e) => addItem(e, "folder", true)}
+                            className="p-1 rounded hover:bg-zinc-800 transition-colors"
                         >
                             <FolderPlus
-                                size={18}
+                                size={16}
                                 className="text-zinc-500 hover:text-ide-accent"
                             />
                         </button>
                     </div>
-                ) : null}
+                )}
             </div>
 
-            {/* Added onClick to handle deselecting folders when clicking empty space */}
+            {/* File Tree / Empty State Area */}
             <div 
                 className="flex-1 overflow-y-auto overflow-x-hidden overscroll-behavior-contain custom-scrollbar relative"
                 onClick={(e) => {
@@ -119,7 +157,8 @@ export default function FileSidebar({
                 }}
             >
                 {data.length === 0 ? (
-                    <div className="flex flex-col items-center mt-20 px-2 text-center select-none group">
+                    /* Empty State */
+                    <div className="flex flex-col items-center w-full mt-12 px-4 text-center select-none group opacity-80 hover:opacity-100 transition-opacity">
                         <div className="p-4 rounded-full bg-white/5 mb-3 border border-transparent group-hover:border-ide-accent/20 group-hover:bg-ide-accent/5 transition-all duration-300">
                             <FilePlus 
                                 size={24} 
@@ -132,7 +171,6 @@ export default function FileSidebar({
                             Project is empty
                         </p>
 
-                        {/* Interactive Buttons Row */}
                         {!readOnly && (
                             <div className="flex items-center gap-2">
                                 {/* Create File */}
@@ -155,6 +193,7 @@ export default function FileSidebar({
                         )}
                     </div>
                 ) : (
+                    /* Folder Structure */
                     <FolderStructure
                         data={data}
                         readOnly={readOnly}

@@ -40,11 +40,40 @@ export default function MainLayout() {
     const [projectName, setProjectName] = useState<string>(
         location.state?.projectName || "Loading Project..."
     );
+    const [isEditing, setIsEditing] = useState(false);
 
     // Helper for CSRF
     const getCSRF = () => {
         const match = document.cookie.match(/csrf_access_token=([^;]+)/);
         return match ? decodeURIComponent(match[1]) : "";
+    };
+
+    const handleRename = async (newName: string) => {
+        if (!newName.trim() || newName === projectName) return;
+    
+        // 1. Optimistic Update
+        setProjectName(newName);
+    
+        try {
+            const response = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
+                method: 'PUT', 
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': getCSRF()
+                },
+                body: JSON.stringify({ name: newName }),
+                credentials: 'include'
+            });
+    
+            if (!response.ok) {
+                throw new Error("Failed to persist name");
+            }
+            
+            setLogs(prev => [...prev, `Project renamed to: ${newName}`]);
+        } catch (error) {
+            console.error("Failed to rename:", error);
+            setLogs(prev => [...prev, "Error: Rename failed."]);
+        }
     };
 
     const triggerRestoreModal = (versionId: number) => {
@@ -1040,7 +1069,7 @@ export default function MainLayout() {
                         {activeTab === "files" ? (
                             <FileSidebar data={previewData || data} readOnly={!!previewData} projectName={previewData ? `PREVIEW: ${projectName}` : projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
-                            expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
+                            expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} handleRename={handleRename} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
                         ) : (
                             <VersionHistory 
                                 versions={versions} 
