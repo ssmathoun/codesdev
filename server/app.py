@@ -10,7 +10,7 @@ from flask_jwt_extended import (
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import select, String, Integer, DateTime, ForeignKey, Text, func, delete
+from sqlalchemy import select, String, Integer, DateTime, ForeignKey, Text, Boolean, func, delete
 from sqlalchemy.orm import Mapped, mapped_column, relationship, DeclarativeBase
 from sqlalchemy.orm.attributes import flag_modified
 from dotenv import load_dotenv
@@ -52,10 +52,17 @@ db = SQLAlchemy(app, model_class=Base)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-frontend_url = os.environ.get("CORS_ORIGIN", "http://localhost:5173")
+# Define all possible places your frontend might run
+allowed_origins = [
+    "http://localhost",           # Docker/Nginx (Port 80)
+    "http://localhost:5173",      # Vite Local Dev
+    "http://127.0.0.1",           # IP based access
+    "http://127.0.0.1:5173",
+    os.environ.get("CORS_ORIGIN") # Environment variable backup
+]
 
-# Configure CORS to allow cookies from the React Spoke
-CORS(app, supports_credentials=True, origins=frontend_url, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+# Configure CORS with the list
+CORS(app, supports_credentials=True, origins=allowed_origins, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 # Database Models
 class User(db.Model):
@@ -79,7 +86,7 @@ class Project(db.Model):
     file_tree: Mapped[dict] = mapped_column(JSONB, nullable=False, default=list)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
+    is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     owner: Mapped["User"] = relationship(back_populates="projects")
     versions: Mapped[List["Version"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
@@ -167,22 +174,30 @@ def get_projects():
     } for p in user_projects]), 200
 
 @app.route('/api/projects/<int:project_id>', methods=['GET'])
-@jwt_required()
+@jwt_required(optional=True)
 def get_single_project(project_id):
-    current_user_id = int(get_jwt_identity())
+    current_user_id = get_jwt_identity()
     
-    # Ensure the project belongs to the logged-in user
-    project = db.session.scalar(
-    select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
-    )
+    project = db.session.get(Project, project_id)
+    
     if not project:
         return jsonify({"msg": "Project not found"}), 404
+    
+    # Permission Logic
+    is_owner = False
+    if current_user_id and int(current_user_id) == project.user_id:
+        is_owner = True
+
+    if not is_owner and not project.is_public:
+        return jsonify({"msg": "Unauthorized"}), 403
     
     return jsonify({
         "id": project.id,
         "name": project.name,
         "file_tree": project.file_tree,
-        "created_at": project.created_at.isoformat() + 'Z' if project.created_at else None
+        "created_at": project.created_at.isoformat() + 'Z' if project.created_at else None,
+        "is_public": project.is_public,
+        "is_owner": is_owner
     }), 200
 
 @app.route('/api/projects', methods=['POST'])
@@ -222,14 +237,16 @@ def get_current_user():
 def update_project(project_id):
     current_user_id = int(get_jwt_identity())
     project = db.session.scalar(
-    select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+        select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
     )
+    
     if not project:
-        return jsonify({"msg": "Project not found"}), 404
+        # If the project exists but belongs to someone else, this returns None
+        # effectively hiding it and preventing edits (returns 404 or 403)
+        return jsonify({"msg": "Project not found or unauthorized"}), 404
     
     data = request.get_json()
     
-    # Update the JSONB blob
     if 'file_tree' in data:
         project.file_tree = data['file_tree']
         flag_modified(project, "file_tree")
@@ -371,6 +388,24 @@ def get_version_details(version_id):
         "created_at": version.created_at.isoformat()
     }), 200
 
+@app.route('/api/projects/<int:project_id>/share', methods=['PUT'])
+@jwt_required()
+def toggle_project_visibility(project_id):
+    current_user_id = int(get_jwt_identity())
+    
+    # Check if user owns the project
+    project = db.session.scalar(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user_id)
+    )
+    
+    if not project:
+        return jsonify({"msg": "Project not found"}), 404
+        
+    data = request.get_json()
+    project.is_public = data.get('is_public', False)
+    db.session.commit()
+    
+    return jsonify({"msg": "Visibility updated", "is_public": project.is_public}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

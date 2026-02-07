@@ -36,6 +36,9 @@ export default function MainLayout() {
     const [previewData, setPreviewData] = useState<folderStructureData[] | null>(null);
     const [activePreviewId, setActivePreviewId] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isPublic, setIsPublic] = useState(false);
+    const [isOwner, setIsOwner] = useState(false);
     const [unsavedChanges, setUnsavedChanges] = useState(false);
     const [projectName, setProjectName] = useState<string>(
         location.state?.projectName || "Loading Project..."
@@ -49,30 +52,29 @@ export default function MainLayout() {
     };
 
     const handleRename = async (newName: string) => {
-        if (!newName.trim() || newName === projectName) return;
-    
-        // 1. Optimistic Update
+        // Update UI immediately for snappiness
         setProjectName(newName);
     
         try {
-            const response = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
-                method: 'PUT', 
+            // Persist to backend
+            const response = await fetch(`http://localhost:5001/api/projects/${projectId}/rename`, {
+                method: 'PATCH',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': getCSRF()
+                    'X-CSRF-TOKEN': getCSRF() 
                 },
                 body: JSON.stringify({ name: newName }),
                 credentials: 'include'
             });
     
-            if (!response.ok) {
-                throw new Error("Failed to persist name");
+            if (response.ok) {
+                setLogs(prev => [...prev, `Project renamed to: ${newName}`]);
+            } else {
+                // Revert if backend fails
+                setLogs(prev => [...prev, "Error: Rename failed on server."]);
             }
-            
-            setLogs(prev => [...prev, `Project renamed to: ${newName}`]);
         } catch (error) {
             console.error("Failed to rename:", error);
-            setLogs(prev => [...prev, "Error: Rename failed."]);
         }
     };
 
@@ -215,6 +217,8 @@ export default function MainLayout() {
                     const project = await res.json();
                     setData(project.file_tree || []);
                     setProjectName(project.name);
+                    setIsPublic(project.is_public);
+                    setIsOwner(project.is_owner);
                 } else {
                     navigate("/home"); // Redirect if project not found
                 }
@@ -227,6 +231,22 @@ export default function MainLayout() {
         fetchProjectData();
     }, [projectId, navigate]);
 
+    const toggleShare = async (newStatus: boolean) => {
+        try {
+            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/share`, {
+                method: "PUT",
+                headers: { 'Content-Type': 'application/json', "X-CSRF-TOKEN": getCSRF() },
+                body: JSON.stringify({ is_public: newStatus }),
+                credentials: "include"
+            });
+            if (res.ok) {
+                setIsPublic(newStatus);
+            }
+        } catch (err) {
+            console.error("Share toggle failed");
+        }
+    };
+    
     const handlePreviewVersion = async (versionId: number) => {
         try {
             const res = await fetch(`http://localhost:5001/api/versions/${versionId}`, { 
@@ -791,7 +811,7 @@ export default function MainLayout() {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                 e.preventDefault();
 
-                if (previewData) {
+                if (previewData || (isPublic && !isOwner)) {
                     setLogs(prev => [...prev, "System: Cannot save while in Preview Mode."]);
                     return;
                 }
@@ -805,7 +825,7 @@ export default function MainLayout() {
                 e.preventDefault();
                 e.stopImmediatePropagation();
 
-                if (previewData) {
+                if (previewData || (isPublic && !isOwner)) {
                     setLogs(prev => [...prev, "System: Cannot create files in Preview Mode."]);
                     return;
                 }
@@ -827,7 +847,7 @@ export default function MainLayout() {
         window.addEventListener('keydown', handleKeyDown, { capture: true });
         
         return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    }, [activeFolderId, previewData]);
+    }, [activeFolderId, previewData, isPublic, isOwner]);
 
     function handleOpenTab(itemId: number) {
         const path = getPath(itemId);
@@ -1023,6 +1043,47 @@ export default function MainLayout() {
                 </div>
             </Modal>
 
+            <Modal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                title="Share Project"
+            >
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between bg-white/5 p-3 rounded border border-white/10">
+                        <span className="text-sm font-medium text-zinc-300">Public Access</span>
+                        {/* Simple Toggle Switch */}
+                        <button 
+                            onClick={() => toggleShare(!isPublic)}
+                            className={`w-10 h-5 rounded-full transition-colors relative ${isPublic ? "bg-green-500" : "bg-zinc-600"}`}
+                        >
+                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isPublic ? "left-6" : "left-1"}`} />
+                        </button>
+                    </div>
+
+                    {isPublic && (
+                        <div className="flex gap-2">
+                            <input 
+                                readOnly 
+                                value={window.location.href} 
+                                className="flex-1 bg-black/30 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-400 outline-none"
+                            />
+                            <button 
+                                onClick={() => navigator.clipboard.writeText(window.location.href)}
+                                className="bg-ide-accent hover:bg-ide-accent/80 text-white text-xs px-3 py-2 rounded font-bold"
+                            >
+                                Copy
+                            </button>
+                        </div>
+                    )}
+                    
+                    <p className="text-xs text-zinc-500">
+                        {isPublic 
+                            ? "Anyone with the link can view this project." 
+                            : "Only you can see this project."}
+                    </p>
+                </div>
+            </Modal>
+
             <div className="grid grid-rows-[48px_1fr] h-screen w-full overflow-hidden">
 
                 {/* Top Navbar */}
@@ -1038,6 +1099,8 @@ export default function MainLayout() {
                     isConsoleOpen={isConsoleOpen}
                     setIsConsoleOpen={setIsConsoleOpen}
                     onCheckpoint={createCheckpoint}
+                    onShare={() => setIsShareModalOpen(true)}
+                    isReadOnly={isPublic && !isOwner}
                 />
 
                 <div className="h-full w-full flex overflow-hidden relative">
@@ -1067,7 +1130,7 @@ export default function MainLayout() {
                             ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
                     >
                         {activeTab === "files" ? (
-                            <FileSidebar data={previewData || data} readOnly={!!previewData} projectName={previewData ? `PREVIEW: ${projectName}` : projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <FileSidebar data={previewData || data} readOnly={!!previewData || (isPublic && !isOwner)} projectName={previewData ? `PREVIEW: ${projectName}` : projectName} menuPos={menuPos} handleContextMenu={handleContextMenu} pendingParentId={pendingParentId} setPendingParentId={setPendingParentId} newItemType={newItemType} setNewItemType={setNewItemType} isAddModalOpen={isAddModalOpen} setIsAddModalOpen={setIsAddModalOpen} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} handleRename={handleRename} itemLookup={itemLookup} deleteItemId={deleteItemId} setDeleteItemId={setDeleteItemId} isDeleteModalOpen={isDeleteModalOpen} setIsDeleteModalOpen={setIsDeleteModalOpen} isSidebarVisible={isSidebarVisible} activeFolderId={activeFolderId} setActiveFolderId={setActiveFolderId} isResizing={isResizing} handleMouseDown={handleMouseDown} />
                         ) : (
@@ -1118,7 +1181,7 @@ export default function MainLayout() {
                                 </div>
                             )}
 
-                            <CodeEditor data={previewData || data} readOnly={!!previewData} projectName={projectName} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
+                            <CodeEditor data={previewData || data} readOnly={!!previewData || (isPublic && !isOwner)} projectName={projectName} getPath={getPath} handleOpenTab={handleOpenTab} isSaving={isSaving} setIsSaving={setIsSaving} updateFileContent={debouncedUpdate} addItemToData={addItemToData} openedId={openedId} handleOpenedId={handleOpenedId}
                             openedFileTabsId={openedFileTabsId} handleOpenedFileTabsId={handleOpenedFileTabsId}
                             expandedIds={expandedIds} handleExpandedIds={handleExpandedIds} itemLookup={itemLookup}/>
                         </div>

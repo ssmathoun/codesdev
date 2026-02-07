@@ -14,7 +14,9 @@ export default function Navbar({
     setIsSidebarVisible, 
     isConsoleOpen, 
     setIsConsoleOpen,
-    onCheckpoint 
+    onCheckpoint,
+    onShare,
+    isReadOnly = false
 }: NavbarProps) {
 
     const navigate = useNavigate();
@@ -89,8 +91,8 @@ export default function Navbar({
                     >
                         <Terminal size={24} strokeWidth={1.5} />
                     </button>
-                    <GitBranch size={24} strokeWidth={1.5} className="hover:opacity-100 opacity-80 cursor-pointer transition-opacity"/>
-                    <Command size={24} strokeWidth={1.5} className="hover:opacity-100 opacity-80 cursor-pointer transition-opacity"/>
+                    {/* <GitBranch size={24} strokeWidth={1.5} className="hover:opacity-100 opacity-80 cursor-pointer transition-opacity"/>
+                    <Command size={24} strokeWidth={1.5} className="hover:opacity-100 opacity-80 cursor-pointer transition-opacity"/> */}
                 </div>
             </div>
 
@@ -110,20 +112,28 @@ export default function Navbar({
                 {/* Action Icons */}
                 <div className="flex items-center gap-4 mr-2">
                     {/* Opens the version naming modal */}
-                    <button 
-                        onClick={onCheckpoint}
-                        title="Create Checkpoint (Snapshot)"
-                        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white/90 border border-white/5 transition-all active:scale-95"
-                    >
-                        <Save size={16} strokeWidth={2} />
-                        <span className="hidden lg:block">Checkpoint</span>
-                    </button>
+                    {!isReadOnly && (
+                        <button 
+                            onClick={onCheckpoint}
+                            title="Create Checkpoint (Snapshot)"
+                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white/90 border border-white/5 transition-all active:scale-95"
+                        >
+                            <Save size={16} strokeWidth={2} />
+                            <span className="hidden lg:block">Checkpoint</span>
+                        </button>
+                    )}
 
-                    <div className="h-4 w-px bg-white/10 mx-1" />
+                    {!isReadOnly && <div className="h-4 w-px bg-white/10 mx-1" />}
 
                     <Play size={20} fill="currentColor" className="hover:scale-110 cursor-pointer transition-transform text-white/90" />
-                    <Share size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
-                    <UserPlus size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
+                    {!isReadOnly && (
+                        <>
+                            <button onClick={onShare}>
+                                <Share size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
+                            </button>
+                            <UserPlus size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
+                        </>
+                    )}
                 </div>
 
                 {/* Profile Avatar with Hover Menu */}

@@ -85,6 +85,8 @@ export interface NavbarProps {
     isConsoleOpen: boolean;
     setIsConsoleOpen: (val: boolean) => void;
     onCheckpoint: () => void;
+    onShare: () => void;
+    isReadOnly?: boolean;
 }
 
 export interface Version {
