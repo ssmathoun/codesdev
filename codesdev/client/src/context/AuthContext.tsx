@@ -21,9 +21,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(ME_ENDPOINT, { 
         method: 'GET',
-        credentials: "include", // Sends the access_token_cookie
+        credentials: "include", 
         headers: {
-          // Sends the CSRF token back to Flask
           "X-CSRF-TOKEN": getCookie('csrf_access_token') || "" 
         }
       });
@@ -33,13 +32,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData);
         return true;
       }
+
+      // Redirect logic
+      if (res.status === 401 && user) {
+        console.warn("Session expired. Clearing user.");
+        setUser(null);
+        // Only redirect if they aren't already on the landing or login page
+        if (window.location.pathname !== "/" && window.location.pathname !== "/login") {
+           window.location.href = "/login";
+        }
+      }
       return false;
     } catch (err) {
       return false;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     checkAuth();

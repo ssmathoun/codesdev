@@ -58,5 +58,12 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:5001
 
+  python-runner:
+    image: codesdev-python-runner
+    build:
+      context: .
+      dockerfile: Dockerfile.python-runner
+    entrypoint: ["echo", "Runner image built"]
+
 volumes:
   postgres_data:

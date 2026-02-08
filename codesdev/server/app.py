@@ -74,7 +74,7 @@ client = docker.from_env()
 
 LANGUAGE_CONFIG = {
     "python": {
-        "image": "python:3.12-slim",
+        "image": "codesdev-python-runner",
         "command": ["sh", "-c", "echo \"$CODE\" > main.py && python main.py"],
     },
     "javascript": {
