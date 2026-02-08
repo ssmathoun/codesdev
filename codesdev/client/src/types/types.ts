@@ -88,6 +88,7 @@ export interface NavbarProps {
     onShare: () => void;
     isReadOnly?: boolean;
     onFork: () => void;
+    onRun: () => void;
 }
 
 export interface Version {

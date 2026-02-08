@@ -55,6 +55,24 @@ export default function MainLayout() {
         return match ? decodeURIComponent(match[1]) : "";
     };
 
+    // Language Detector Helper
+    const getExecutionLanguage = (filename: string) => {
+        const ext = filename.split('.').pop()?.toLowerCase();
+        const map: Record<string, string> = {
+            'js': 'javascript', 
+            'jsx': 'javascript',
+            'ts': 'typescript', 
+            'tsx': 'typescript',
+            'py': 'python', 
+            'rb': 'ruby', 
+            'go': 'go',
+            'c': 'c', 
+            'cpp': 'cpp', 
+            'java': 'java'
+        };
+        return ext ? map[ext] : null;
+    };
+
     const handleRename = async (newName: string) => {
         // Update UI immediately for snappiness
         setProjectName(newName);
@@ -763,10 +781,10 @@ export default function MainLayout() {
 
     const [consoleHeight, setConsoleHeight] = useState(150);
     const [isConsoleOpen, setIsConsoleOpen] = useState(true);
-    const [logs, setLogs] = useState<string[]>(["Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!","Project initialized...", "Welcome to the editor!", "Project initialized...", "Welcome to the editor!"]);
+    const [logs, setLogs] = useState<string[]>(["Project initialized...", "Welcome to the editor!"]);
 
-     /*
-    Function to resize the sidebar on mouse down event.
+    /*
+        Function to resize the sidebar on mouse down event.
     */
     const handleConsoleResize = (e: React.MouseEvent) => {
         const startHeight = consoleHeight;
@@ -876,6 +894,11 @@ export default function MainLayout() {
                 setPendingParentId(activeFolderId);
             }
 
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleRunCode();
+            }
+
             if (e.key === 'Escape') {
                 setIsCommandPaletteOpen(false);
                 setMenuPos(null);
@@ -908,6 +931,84 @@ export default function MainLayout() {
 
         // Reset the message after 2 seconds
         setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    // The Run Function
+    const handleRunCode = async () => {
+        // Ensure a file is open
+        if (!openedId) {
+            setLogs(prev => [...prev, "System: No file currently open."]);
+            setIsConsoleOpen(true);
+            return;
+        }
+
+        const currentFile = itemLookup.get(openedId);
+        if (!currentFile || currentFile.type !== "file") return;
+
+        // Use your existing helper name
+        const language = getExecutionLanguage(currentFile.name); // <--- FIXED NAME HERE
+        if (!language) {
+            setLogs(prev => [...prev, `System: Cannot run '${currentFile.name}'. Extension not supported.`]);
+            setIsConsoleOpen(true);
+            return;
+        }
+
+        setIsSaving(true);
+        setLogs(prev => [...prev, `> Running ${currentFile.name}...`]);
+        setIsConsoleOpen(true);
+
+        // 3. Gather all files with relative ports. This is crucial for imports to work in the execution environment.
+        const allFiles: {name: string, content: string}[] = [];
+        
+        // Accepts a 'path' argument to track folders.
+        const collectFiles = (items: folderStructureData[], currentPath: string = "") => {
+            items.forEach(item => {
+                // Build the path: "utils" + "/" + "math.py"
+                const itemPath = currentPath ? `${currentPath}/${item.name}` : item.name;
+                
+                if (item.type === "file") {
+                    allFiles.push({
+                        name: itemPath, // Sends "utils/math.py" instead of just "math.py"
+                        content: item.content || ""
+                    });
+                } else if (item.children) {
+                    // Recursively dive into folders, passing the new path down
+                    collectFiles(item.children, itemPath);
+                }
+            });
+        };
+        
+        // Collect from the active data source
+        collectFiles(previewData || data);
+
+        try {
+            // Send the payload
+            const res = await fetch("http://localhost:5001/api/execute", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": getCSRF() 
+                },
+                body: JSON.stringify({
+                    language: language,
+                    entry_file: currentFile.name,  // The file to execute
+                    files: allFiles                // The context for imports
+                }),
+                credentials: "include"
+            });
+
+            const result = await res.json();
+            
+            if (result.output) {
+                setLogs(prev => [...prev, result.output.trimEnd()]);
+            } else if (result.error) {
+                setLogs(prev => [...prev, `Error: ${result.error}`]);
+            }
+        } catch (err) {
+            setLogs(prev => [...prev, "System: Execution request failed. Is the server running?"]);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     return (
@@ -1159,6 +1260,7 @@ export default function MainLayout() {
                     onShare={() => setIsShareModalOpen(true)}
                     isReadOnly={isReadOnly}
                     onFork={handleFork}
+                    onRun={handleRunCode}
                 />
 
                 <div className="h-full w-full flex overflow-hidden relative">

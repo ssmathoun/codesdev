@@ -18,6 +18,10 @@ from sqlalchemy.orm.attributes import flag_modified
 from dotenv import load_dotenv
 from datetime import datetime
 from typing import Optional, List
+import tempfile
+import shutil
+import tarfile
+import io
 
 # Load Environment Variables
 load_dotenv()
@@ -492,32 +496,70 @@ def execute_code_route():
     data = request.get_json()
     
     language = data.get('language')
-    code = data.get('code')
+    entry_file = data.get('entry_file')
+    files = data.get('files')
     
-    # Validation
-    if not language or not code:
-        return jsonify({"error": "Missing 'language' or 'code' field"}), 400
+    if not language or not entry_file or not files:
+        return jsonify({"error": "Missing required fields"}), 400
         
     config = LANGUAGE_CONFIG.get(language)
     if not config:
-        return jsonify({"error": f"Language '{language}' is not supported for server-side execution."}), 400
+        return jsonify({"error": f"Language '{language}' is not supported."}), 400
 
     container = None
-
     try:
-        # Run Container Securely
-        # We pass the code as an Environment Variable ($CODE) to avoid complex file mounting issues
-        container = client.containers.run(
+        # Create an In-Memory tar Archive of the project files
+        file_obj = io.BytesIO()
+        with tarfile.open(fileobj=file_obj, mode='w') as tar:
+            for file in files:
+                # Skip files trying to escape root
+                if '..' in file['name'] or file['name'].startswith('/'):
+                    continue
+                
+                # Create a tar info object
+                info = tarfile.TarInfo(name=file['name'])
+                file_content = (file['content'] or "").encode('utf-8')
+                info.size = len(file_content)
+                
+                # Add file to tar
+                tar.addfile(info, io.BytesIO(file_content))
+        
+        file_obj.seek(0) # Reset pointer to beginning of stream
+
+        # Define Command based on language
+        run_cmd = config['command']
+        if language == "python":
+            run_cmd = f"python {entry_file}"
+        elif language in ["javascript", "typescript"]:
+            run_cmd = f"node {entry_file}"
+        elif language == "ruby":
+            run_cmd = f"ruby {entry_file}"
+        elif language == "go":
+            run_cmd = f"go run {entry_file}"
+        elif language in ["c", "cpp"]:
+            compiler = "gcc" if language == "c" else "g++"
+            run_cmd = f"{compiler} {entry_file} -o app && ./app"
+        elif language == "java":
+            class_name = entry_file.replace(".java", "")
+            run_cmd = f"javac {entry_file} && java {class_name}"
+
+        # Create the Container (Stopped state)
+        container = client.containers.create(
             image=config['image'],
-            command=config['command'],
-            environment={"CODE": code},  # Inject code into the container
-            mem_limit="128m",            # Limit RAM to 128MB
-            network_disabled=True,       # Block Internet Access
-            detach=True,                 # Run in background
+            command=["sh", "-c", run_cmd],
+            working_dir="/app",
+            mem_limit="128m",
+            network_disabled=True,
             tty=False
         )
 
-        # 3. Wait for result (Timeout after 5 seconds)
+        # Copy the TAR archive into the container, this works even inside Docker-in-Docker
+        container.put_archive("/app", file_obj)
+
+        # Start the container
+        container.start()
+
+        # Wait for result
         try:
             result = container.wait(timeout=5)
             exit_code = result.get('StatusCode', 1)
@@ -525,26 +567,18 @@ def execute_code_route():
             container.kill()
             return jsonify({"output": "Error: Execution Timed Out (Limit: 5s)", "exit_code": 124})
 
-        # 4. Get Logs (Output)
+        # Get Logs
         logs = container.logs().decode('utf-8')
-        
-        return jsonify({
-            "output": logs if logs else "No output returned.",
-            "exit_code": exit_code
-        })
+        return jsonify({"output": logs, "exit_code": exit_code})
 
-    except docker.errors.ImageNotFound:
-        return jsonify({"error": f"Docker image for {language} not found. Please contact admin."}), 500
     except Exception as e:
         return jsonify({"error": f"Execution failed: {str(e)}"}), 500
         
     finally:
-        # Cleanup
         if container:
             try:
                 container.remove(force=True)
-            except:
-                pass
+            except: pass
 
             
 if __name__ == '__main__':

@@ -17,7 +17,8 @@ export default function Navbar({
     onCheckpoint,
     onShare,
     isReadOnly = false,
-    onFork
+    onFork,
+    onRun
 }: NavbarProps) {
 
     const navigate = useNavigate();
@@ -136,7 +137,15 @@ export default function Navbar({
 
                     {!isReadOnly && <div className="h-4 w-px bg-white/10 mx-1" />}
 
-                    <Play size={20} fill="currentColor" className="hover:scale-110 cursor-pointer transition-transform text-white/90" />
+                    <button 
+                        onClick={onRun}
+                        className="flex items-center gap-2 bg-white hover:bg-green-600 text-ide-accent hover:text-white px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/20"
+                        title="Run Code (Ctrl+Enter)"
+                    >
+                        <Play size={14} fill="currentColor" />
+                        <span className="hidden lg:block">Run</span>
+                    </button>
+
                     {!isReadOnly && (
                         <>
                             <button onClick={onShare}>

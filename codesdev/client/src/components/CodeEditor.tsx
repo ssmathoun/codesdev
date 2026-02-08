@@ -61,6 +61,8 @@ export default function CodeEditor({
         'md': 'markdown',
         'c': 'c',
         'cpp': 'cpp',
+        'h': 'cpp',
+        'hpp': 'cpp',
         'java': 'java',
         'rb': 'ruby',
         'go': 'go'
