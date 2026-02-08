@@ -1,10 +1,10 @@
 services:
   # Service 1: The Database
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: codesdev-db
     restart: always
-    env_file: .env
+    env_file: ./codesdev/.env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -13,30 +13,50 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # Service 2: The Backend (Flask)
   server:
-    build: ./server
+    build: 
+      context: ./codesdev/server
+      dockerfile: Dockerfile
     container_name: codesdev-server
     restart: always
-    env_file: .env
+    user: root
+    env_file:
+      - ./codesdev/.env
+      - ./codesdev/server/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       CORS_ORIGIN: http://localhost
+      DOCKER_HOST: unix:///var/run/docker.sock
     ports:
       - "5001:5001"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    volumes:
+      - ./codesdev/server:/app:delegated
+      - /var/run/docker.sock:/var/run/docker.sock
 
   # Service 3: The Frontend (React + Nginx)
   client:
-    build: ./client
+    build:
+      context: ./codesdev/client
     container_name: codesdev-client
     restart: always
     ports:
       - "80:80"
     depends_on:
       - server
+    volumes:
+      - ./codesdev/client:/app:delegated
+    environment:
+      - REACT_APP_API_URL=http://localhost:5001
 
 volumes:
   postgres_data:

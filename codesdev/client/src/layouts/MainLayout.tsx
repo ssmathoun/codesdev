@@ -37,6 +37,7 @@ export default function MainLayout() {
     const [activePreviewId, setActivePreviewId] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
     const [isPublic, setIsPublic] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
     const [unsavedChanges, setUnsavedChanges] = useState(false);
@@ -901,6 +902,14 @@ export default function MainLayout() {
         handleOpenedId(itemId);
     }
 
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(window.location.href);
+        setIsCopied(true);
+
+        // Reset the message after 2 seconds
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
     return (
         <div className="fixed inset-0 h-screen w-screen overflow-hidden grid grid-rows-[48px_1fr]">
             {isLoading && (
@@ -1101,18 +1110,26 @@ export default function MainLayout() {
                     </div>
 
                     {isPublic && (
-                        <div className="flex gap-2">
-                            <input 
-                                readOnly 
-                                value={window.location.href} 
-                                className="flex-1 bg-black/30 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-400 outline-none"
-                            />
-                            <button 
-                                onClick={() => navigator.clipboard.writeText(window.location.href)}
-                                className="bg-ide-accent hover:bg-ide-accent/80 text-white text-xs px-3 py-2 rounded font-bold"
-                            >
-                                Copy
-                            </button>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <input 
+                                    readOnly 
+                                    value={window.location.href} 
+                                    className="flex-1 bg-black/30 border border-zinc-700 rounded px-3 py-2 text-xs text-zinc-400 outline-none"
+                                />
+                                <button 
+                                    onClick={handleCopyLink}
+                                    className={`min-w-17.5 transition-all text-white text-xs px-3 py-2 rounded font-bold ${isCopied ? "bg-green-600" : "bg-ide-accent hover:bg-ide-accent/80"}`}
+                                >
+                                    {isCopied ? "Copied!" : "Copy"}
+                                </button>
+                            </div>
+                            {/* Small fade-in message */}
+                            {isCopied && (
+                                <span className="text-[10px] text-green-500 font-medium animate-pulse">
+                                    Link copied to clipboard!
+                                </span>
+                            )}
                         </div>
                     )}
                     

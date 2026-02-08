@@ -1,0 +1,15 @@
+{
+    "name": "Codesdev Development",
+    "dockerComposeFile": "../docker-compose.yml", 
+    "service": "server",
+    "workspaceFolder": "/app",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "version": "latest",
+            "enableNonRootDocker": "true",
+            "moby": "true"
+        },
+        "ghcr.io/devcontainers/features/python:1": {}
+    },
+    "remoteUser": "root" 
+}

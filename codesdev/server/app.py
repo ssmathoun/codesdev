@@ -1,4 +1,6 @@
 import os
+import docker
+import uuid
 from datetime import timedelta
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
@@ -63,6 +65,43 @@ allowed_origins = [
 
 # Configure CORS with the list
 CORS(app, supports_credentials=True, origins=allowed_origins, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+
+client = docker.from_env()
+
+LANGUAGE_CONFIG = {
+    "python": {
+        "image": "python:3.12-slim",
+        "command": ["sh", "-c", "echo \"$CODE\" > main.py && python main.py"],
+    },
+    "javascript": {
+        "image": "node:20-slim",
+        "command": ["sh", "-c", "echo \"$CODE\" > index.js && node index.js"],
+    },
+    "typescript": {
+        "image": "node:20-slim", # We use Node to run simple TS (via ts-node if installed, or just treating as JS)
+        "command": ["sh", "-c", "echo \"$CODE\" > index.js && node index.js"], 
+    },
+    "ruby": {
+        "image": "ruby:3.2-slim",
+        "command": ["sh", "-c", "echo \"$CODE\" > script.rb && ruby script.rb"],
+    },
+    "go": {
+        "image": "golang:1.22-alpine",
+        "command": ["sh", "-c", "echo \"$CODE\" > main.go && go run main.go"],
+    },
+    "c": {
+        "image": "gcc:13", # GCC image handles both C and C++
+        "command": ["sh", "-c", "echo \"$CODE\" > main.c && gcc main.c -o app && ./app"],
+    },
+    "cpp": {
+        "image": "gcc:13",
+        "command": ["sh", "-c", "echo \"$CODE\" > main.cpp && g++ main.cpp -o app && ./app"],
+    },
+    "java": {
+        "image": "eclipse-temurin:21-jdk",
+        "command": ["sh", "-c", "echo \"$CODE\" > Main.java && javac Main.java && java Main"],
+    }
+}
 
 # Database Models
 class User(db.Model):
@@ -184,7 +223,7 @@ def get_single_project(project_id):
         return jsonify({"msg": "Project not found"}), 404
     
     print(f"DEBUG CHECK: Token User={current_user_id} (Type: {type(current_user_id)}) vs Project Owner={project.user_id}", flush=True)
-    
+
     # Permission Logic
     is_owner = False
     if current_user_id and int(current_user_id) == project.user_id:
@@ -447,5 +486,66 @@ def fork_project(project_id):
         "name": forked_project.name
     }), 201
 
+@app.route('/api/execute', methods=['POST'])
+@jwt_required()
+def execute_code_route():
+    data = request.get_json()
+    
+    language = data.get('language')
+    code = data.get('code')
+    
+    # Validation
+    if not language or not code:
+        return jsonify({"error": "Missing 'language' or 'code' field"}), 400
+        
+    config = LANGUAGE_CONFIG.get(language)
+    if not config:
+        return jsonify({"error": f"Language '{language}' is not supported for server-side execution."}), 400
+
+    container = None
+
+    try:
+        # Run Container Securely
+        # We pass the code as an Environment Variable ($CODE) to avoid complex file mounting issues
+        container = client.containers.run(
+            image=config['image'],
+            command=config['command'],
+            environment={"CODE": code},  # Inject code into the container
+            mem_limit="128m",            # Limit RAM to 128MB
+            network_disabled=True,       # Block Internet Access
+            detach=True,                 # Run in background
+            tty=False
+        )
+
+        # 3. Wait for result (Timeout after 5 seconds)
+        try:
+            result = container.wait(timeout=5)
+            exit_code = result.get('StatusCode', 1)
+        except Exception:
+            container.kill()
+            return jsonify({"output": "Error: Execution Timed Out (Limit: 5s)", "exit_code": 124})
+
+        # 4. Get Logs (Output)
+        logs = container.logs().decode('utf-8')
+        
+        return jsonify({
+            "output": logs if logs else "No output returned.",
+            "exit_code": exit_code
+        })
+
+    except docker.errors.ImageNotFound:
+        return jsonify({"error": f"Docker image for {language} not found. Please contact admin."}), 500
+    except Exception as e:
+        return jsonify({"error": f"Execution failed: {str(e)}"}), 500
+        
+    finally:
+        # Cleanup
+        if container:
+            try:
+                container.remove(force=True)
+            except:
+                pass
+
+            
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)
