@@ -643,10 +643,13 @@ export default function MainLayout() {
         if (pendingParentId !== null) {
             setExpandedIds(prev => prev.includes(pendingParentId!) ? prev : [...prev, pendingParentId!]);
         }
-        if (newItemType === "file") handleOpenedFileTabsId(newItemId);
         
+        if (newItemType === "file") {
+            handleOpenedFileTabsId(newItemId);
+            setOpenedId(newItemId);
+        }
+    
         setNewItemType(null);
-        setOpenedId(newItemId);
         setNewItemName("");
         setIsAddModalOpen(false);
         setPendingParentId(null);
@@ -897,10 +900,10 @@ export default function MainLayout() {
             }
             return;
         }
-    
+
         const currentFile = itemLookup.get(openedId);
         if (!currentFile || currentFile.type !== "file") return;
-    
+
         // Identify the language based on extension
         const language = getExecutionLanguage(currentFile.name);
         if (!language) {
@@ -911,15 +914,28 @@ export default function MainLayout() {
             setIsConsoleOpen(true);
             return;
         }
-    
+
+        // Calculate Full Path for the Entry File
+        let fullEntryPath = currentFile.name;
+        let pointer = currentFile;
+        while (pointer.parent) {
+            const parent = itemLookup.get(pointer.parent);
+            if (parent) {
+                fullEntryPath = `${parent.name}/${fullEntryPath}`;
+                pointer = parent;
+            } else {
+                break;
+            }
+        }
+
         // Update UI State for Execution
         setIsExecuting(true);
         setIsConsoleOpen(true);
         setLogs(prev => [...prev, { 
-            text: `> Running ${currentFile.name}...`, 
+            text: `> Running ${fullEntryPath}...`, 
             type: 'log' 
         }]);
-    
+
         // Gather all files in the tree (allows for imports/modules to work)
         const allFiles: {name: string, content: string}[] = [];
         
@@ -940,7 +956,7 @@ export default function MainLayout() {
         
         // Collect from the active data source (live or preview)
         collectFiles(previewData || data);
-    
+
         try {
             // POST to the Execution Backend
             const res = await fetch("http://localhost:5001/api/execute", {
@@ -951,12 +967,12 @@ export default function MainLayout() {
                 },
                 body: JSON.stringify({
                     language: language,
-                    entry_file: currentFile.name,
+                    entry_file: fullEntryPath, // Send the full path
                     files: allFiles
                 }),
                 credentials: "include"
             });
-    
+
             const result = await res.json();
             const out = result.output?.trim();
             const err = result.error?.trim();

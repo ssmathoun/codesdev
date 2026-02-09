@@ -506,6 +506,36 @@ def execute_code_route():
     if not config:
         return jsonify({"error": f"Language '{language}' is not supported."}), 400
 
+    # Create a map of {filename: [full_paths]}
+    file_map = {}
+    for f in files:
+        name = f['name']
+        basename = os.path.basename(name)
+        
+        if basename not in file_map:
+            file_map[basename] = []
+        file_map[basename].append(name)
+
+    # Determine the correct entry file
+    # Case 1: The frontend sent the full path ("server/src/test.py"), check if it exists.
+    # We check if the exact string provided exists in our file list.
+    exact_match = next((f for f in files if f['name'] == entry_file), None)
+    
+    if exact_match:
+        # entry_file is already correct
+        pass 
+    else:
+        # Case 2: The frontend sent just the filename ("app.py"), find the real path.
+        candidates = file_map.get(os.path.basename(entry_file), [])
+        
+        if len(candidates) == 1:
+            entry_file = candidates[0] # unambiguous match
+        elif len(candidates) > 1:
+            # Default to the one with the shortest path (closest to root) to avoid crashing if ambiguity arises.
+            entry_file = min(candidates, key=len) 
+        else:
+            return jsonify({"error": f"Entry file '{entry_file}' not found in project."}), 400
+
     container = None
     try:
         # Create an In-Memory tar Archive of the project files
@@ -529,19 +559,20 @@ def execute_code_route():
         # Define Command based on language
         run_cmd = config['command']
         if language == "python":
-            run_cmd = f"python {entry_file}"
+            run_cmd = f"python \"{entry_file}\""
         elif language in ["javascript", "typescript"]:
-            run_cmd = f"node {entry_file}"
+            run_cmd = f"node \"{entry_file}\""
         elif language == "ruby":
-            run_cmd = f"ruby {entry_file}"
+            run_cmd = f"ruby \"{entry_file}\""
         elif language == "go":
-            run_cmd = f"go run {entry_file}"
+            run_cmd = f"go run \"{entry_file}\""
         elif language in ["c", "cpp"]:
             compiler = "gcc" if language == "c" else "g++"
-            run_cmd = f"{compiler} {entry_file} -o app && ./app"
+            # Compile the specific file, output to root 'app', then run it
+            run_cmd = f"{compiler} \"{entry_file}\" -o app && ./app"
         elif language == "java":
-            class_name = entry_file.replace(".java", "")
-            run_cmd = f"javac {entry_file} && java {class_name}"
+            # Java Source Code Launcher (Java 11+) handles paths automatically
+            run_cmd = f"java \"{entry_file}\""
 
         # Create the Container (Stopped state)
         container = client.containers.create(
@@ -553,7 +584,7 @@ def execute_code_route():
             tty=False
         )
 
-        # Copy the TAR archive into the container, this works even inside Docker-in-Docker
+        # Copy the tar archive into the container
         container.put_archive("/app", file_obj)
 
         # Start the container
@@ -564,7 +595,9 @@ def execute_code_route():
             result = container.wait(timeout=5)
             exit_code = result.get('StatusCode', 1)
         except Exception:
-            container.kill()
+            try:
+                container.kill()
+            except: pass
             return jsonify({
                 "output": None, 
                 "error": "Error: Execution Timed Out (Limit: 5s)", 
