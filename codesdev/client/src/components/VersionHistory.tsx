@@ -32,7 +32,7 @@ export default function VersionHistory({ versions, onRevert, onPreview, activePr
             <div className="p-4 border-b border-white/5 bg-ide-bg flex items-center gap-2">
                 <History size={14} className="text-[#dc2626]" />
                 <h3 className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold">
-                    Node History
+                    Version History
                 </h3>
             </div>
 
