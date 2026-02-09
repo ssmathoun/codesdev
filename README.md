@@ -1,4 +1,4 @@
-# Codesdev | Cloud Engineering IDE
+# Codesdev | Full-Stack Web IDE
 
 > **⚠️ Status: Active Development**
 >
