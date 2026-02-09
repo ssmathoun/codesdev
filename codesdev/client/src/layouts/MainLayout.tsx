@@ -5,7 +5,7 @@ import { Check, Loader2, AlertCircle } from "lucide-react";
 import CodeEditor from "../components/CodeEditor";
 import FileSidebar from "../components/FileSidebar";
 import ContextMenu from "../components/ContextMenu";
-import type { folderStructureData } from "../types/types";
+import type { folderStructureData, OutputConsoleProps } from "../types/types";
 import Modal from "../components/Modal";
 import Navbar from "../components/Navbar";
 import OutputConsole from "../components/OutputConsole"
@@ -90,10 +90,16 @@ export default function MainLayout() {
             });
     
             if (response.ok) {
-                setLogs(prev => [...prev, `Project renamed to: ${newName}`]);
+                setLogs(prev => [...prev, { 
+                    text: `Project renamed to: ${newName}`, 
+                    type: 'success' 
+                }]);
             } else {
                 // Revert if backend fails
-                setLogs(prev => [...prev, "Error: Rename failed on server."]);
+                setLogs(prev => [...prev, { 
+                    text: "Error: Rename failed on server.", 
+                    type: 'error' 
+                }]);
             }
         } catch (error) {
             console.error("Failed to rename:", error);
@@ -140,7 +146,10 @@ export default function MainLayout() {
                 setActivePreviewId(null);
                 
                 // 3. UI Cleanup
-                setLogs(prev => [...prev, "System state restored. Preview mode terminated."]);
+                setLogs(prev => [...prev, { 
+                    text: "System state restored. Preview mode terminated.", 
+                    type: 'info' 
+                }]);
                 setOpenedFileTabsId(prev => syncTabsWithData(result.file_tree, prev));
                 setIsRestoreModalOpen(false);
                 setActiveTab("files");
@@ -152,7 +161,10 @@ export default function MainLayout() {
                 }
             }
         } catch (err) {
-            setLogs(prev => [...prev, "Error: Restore failed."]);
+            setLogs(prev => [...prev, { 
+                text: "Error: Restore failed.", 
+                type: 'error' 
+            }]);
         }
     };
 
@@ -180,7 +192,10 @@ export default function MainLayout() {
                 setVersionName("");
                 fetchHistory(); 
                 
-                setLogs(prev => [...prev, `Identity Synced: ${versionName}`]);
+                setLogs(prev => [...prev, { 
+                    text: `Identity Synced: ${versionName}`, 
+                    type: 'success' 
+                }]);
             }
         } catch (err) {
             console.error("Manual checkpoint failed");
@@ -197,7 +212,10 @@ export default function MainLayout() {
                 setVersions(historyData);
             }
         } catch (err) {
-            setLogs(prev => [...prev, "Error: Failed to fetch version history."]);
+            setLogs(prev => [...prev, { 
+                text: "Error: Failed to fetch version history.", 
+                type: 'error' 
+            }]);
         }
     }, [projectId]);
 
@@ -243,10 +261,16 @@ export default function MainLayout() {
                     setIsOwner(project.is_owner);
                 } else {
                     navigate("/home"); // Redirect if project not found
-                    setLogs(prev => [...prev, `Critical Error: Server returned ${res.status}`]); // TESTING
+                    setLogs(prev => [...prev, { 
+                        text: `Critical Error: Server returned ${res.status}`, 
+                        type: 'error' 
+                    }]);
                 }
             } catch (error) {
-                setLogs(prev => [...prev, "Error: Failed to connect to persistence layer."]);
+                setLogs(prev => [...prev, { 
+                    text: "Error: Failed to connect to persistence layer.", 
+                    type: 'error' 
+                }]);
             } finally {
                 setIsLoading(false);
             }
@@ -310,10 +334,16 @@ export default function MainLayout() {
                     }
                 }
                 
-                setLogs(prev => [...prev, `Previewing snapshot node: ${versionId}`]);
+                setLogs(prev => [...prev, { 
+                    text: `Previewing snapshot node: ${versionId}`, 
+                    type: 'info' 
+                }]);
             }
         } catch (err) {
-            setLogs(prev => [...prev, "Error: Failed to load snapshot content."]);
+            setLogs(prev => [...prev, { 
+                text: "Error: Failed to load snapshot content.", 
+                type: 'error' 
+            }]);
         }
     };
     
@@ -781,7 +811,10 @@ export default function MainLayout() {
 
     const [consoleHeight, setConsoleHeight] = useState(150);
     const [isConsoleOpen, setIsConsoleOpen] = useState(true);
-    const [logs, setLogs] = useState<string[]>(["Project initialized...", "Welcome to the editor!"]);
+    const [logs, setLogs] = useState<OutputConsoleProps['logs']>([
+        { text: "Project initialized...", type: 'info' },
+        { text: "Welcome to the editor!", type: 'info' }
+    ]);
 
     /*
         Function to resize the sidebar on mouse down event.
@@ -828,7 +861,7 @@ export default function MainLayout() {
                     window.location.href = `/editor/${data.id}`;
                 }
             } else {
-                setLogs(prev => [...prev, "Error: Fork failed."]);
+                setLogs(prev => [...prev, { text: "Error: Fork failed", type: 'error' }])
             }
         } catch (err) {
             console.error("Fork error:", err);
@@ -871,13 +904,19 @@ export default function MainLayout() {
                 e.preventDefault();
 
                 if (isReadOnly) {
-                    setLogs(prev => [...prev, "System: Cannot save while in Read-Only Mode."]);
+                    setLogs(prev => [...prev, { 
+                        text: "System: Cannot save while in Read-Only Mode.", 
+                        type: 'error' 
+                    }]);
                     return;
                 }
 
                 setIsSaving(true);
                 setTimeout(() => setIsSaving(false), 800);
-                setLogs(prev => [...prev, `Saved project at ${new Date().toLocaleTimeString()}`]);
+                setLogs(prev => [...prev, { 
+                    text: `Saved project at ${new Date().toLocaleTimeString()}`, 
+                    type: 'success' 
+                }]);
             }
 
             if (e.ctrlKey && e.key.toLowerCase() === 'n') {
@@ -885,7 +924,10 @@ export default function MainLayout() {
                 e.stopImmediatePropagation();
 
                 if (isReadOnly) {
-                    setLogs(prev => [...prev, "System: Cannot create files in Read-Only Mode."]);
+                    setLogs(prev => [...prev, { 
+                        text: "System: Cannot create files in Read-Only Mode.", 
+                        type: 'error' 
+                    }]);
                     return;
                 }
 
@@ -937,7 +979,10 @@ export default function MainLayout() {
     const handleRunCode = async () => {
         // Ensure a file is open
         if (!openedId) {
-            setLogs(prev => [...prev, "System: No file currently open."]);
+            setLogs(prev => [...prev, { 
+                text: "System: No file currently open.", 
+                type: 'error' 
+            }]);
             setIsConsoleOpen(true);
             return;
         }
@@ -948,13 +993,19 @@ export default function MainLayout() {
         // Use your existing helper name
         const language = getExecutionLanguage(currentFile.name); // <--- FIXED NAME HERE
         if (!language) {
-            setLogs(prev => [...prev, `System: Cannot run '${currentFile.name}'. Extension not supported.`]);
+            setLogs(prev => [...prev, { 
+                text: `System: Cannot run '${currentFile.name}'. Extension not supported.`, 
+                type: 'error' 
+            }]);
             setIsConsoleOpen(true);
             return;
         }
 
         setIsSaving(true);
-        setLogs(prev => [...prev, `> Running ${currentFile.name}...`]);
+        setLogs(prev => [...prev, { 
+            text: `> Running ${currentFile.name}...`, 
+            type: 'log' 
+        }]);
         setIsConsoleOpen(true);
 
         // 3. Gather all files with relative ports. This is crucial for imports to work in the execution environment.
@@ -998,14 +1049,28 @@ export default function MainLayout() {
             });
 
             const result = await res.json();
+            const out = result.output?.trim();
+            const err = result.error?.trim();
             
-            if (result.output) {
-                setLogs(prev => [...prev, result.output.trimEnd()]);
-            } else if (result.error) {
-                setLogs(prev => [...prev, `Error: ${result.error}`]);
+            // Show the standard output (White)
+            if (out) {
+                // Only show if it's not a direct duplicate of the error message
+                if (out !== err) {
+                    setLogs(prev => [...prev, { text: out, type: 'log' }]);
+                }
+            }
+            
+            // Show the error output (Red)
+            if (err) {
+                setLogs(prev => [...prev, { text: err, type: 'error' }]);
+            }
+            
+            // System Fallback
+            if (!out && !err && result.exit_code !== 0) {
+                setLogs(prev => [...prev, { text: `Process exited with code ${result.exit_code}`, type: 'error' }]);
             }
         } catch (err) {
-            setLogs(prev => [...prev, "System: Execution request failed. Is the server running?"]);
+            setLogs(prev => [...prev, { text: "System: Execution request failed.", type: 'error' }]);
         } finally {
             setIsSaving(false);
         }

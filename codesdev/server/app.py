@@ -565,14 +565,24 @@ def execute_code_route():
             exit_code = result.get('StatusCode', 1)
         except Exception:
             container.kill()
-            return jsonify({"output": "Error: Execution Timed Out (Limit: 5s)", "exit_code": 124})
+            return jsonify({
+                "output": None, 
+                "error": "Error: Execution Timed Out (Limit: 5s)", 
+                "exit_code": 124
+            })
 
-        # Get Logs
-        logs = container.logs().decode('utf-8')
-        return jsonify({"output": logs, "exit_code": exit_code})
+        # Get Output and Error Logs
+        stdout_logs = container.logs(stdout=True, stderr=False).decode('utf-8').strip()
+        stderr_logs = container.logs(stdout=False, stderr=True).decode('utf-8').strip()
+
+        return jsonify({
+            "output": stdout_logs if stdout_logs else None,
+            "error": stderr_logs if stderr_logs else None,
+            "exit_code": exit_code
+        })
 
     except Exception as e:
-        return jsonify({"error": f"Execution failed: {str(e)}"}), 500
+        return jsonify({"error": f"Execution failed: {str(e)}", "output": None}), 500
         
     finally:
         if container:

@@ -26,7 +26,7 @@ export interface ContextMenuProps {
 }
 
 export interface OutputConsoleProps {
-    logs: string[];
+    logs: { text: string; type: 'info' | 'error' | 'success' | 'log' }[];
     onClear: () => void;
     onClose: () => void;
     height: number;
