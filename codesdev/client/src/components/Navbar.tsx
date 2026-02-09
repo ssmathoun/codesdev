@@ -159,14 +159,11 @@ export default function Navbar({
                         )}
                     </button>
 
-                    {/* Share/User icons */}
+                    {/* Share icon */}
                     {!isReadOnly && (
                         <div className="flex items-center gap-3 ml-2 border-l border-white/10 pl-4">
                             <button onClick={onShare} title="Share Project">
                                 <Share size={18} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
-                            </button>
-                            <button title="Add Collaborator">
-                                <UserPlus size={18} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
                             </button>
                         </div>
                     )}
