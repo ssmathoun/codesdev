@@ -23,7 +23,7 @@ export default function WelcomePage() {
             {/* Branding Section */}
             <div className="flex flex-col items-center mb-12">
                 <h1 className="text-2xl font-bold text-zinc-200 tracking-tight"> codesdev Web IDE<span className="text-ide-accent"> v1.0</span></h1>
-                <p className="text-zinc-500 text-sm mt-2 font-medium">Standardize your collaborative workflow in the cloud.</p>
+                <p className="text-zinc-500 text-sm mt-2 font-medium">Standardize your development workflow in the cloud.</p>
             </div>
         
             {/* Shortcuts Grid */}
