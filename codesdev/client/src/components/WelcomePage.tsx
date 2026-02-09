@@ -1,4 +1,4 @@
-import { Search, Terminal as TerminalIcon, PanelLeft, Save, FilePlus } from "lucide-react";
+import { Search, Terminal as TerminalIcon, PanelLeft, Save, FilePlus, SquareTerminal } from "lucide-react";
 
 export default function WelcomePage() {
     const Shortcut = ({ icon: Icon, label, keys }: { icon: any, label: string, keys: string[] }) => (
@@ -32,6 +32,7 @@ export default function WelcomePage() {
                 <Shortcut icon={TerminalIcon} label="Toggle Console" keys={["Ctrl / Cmd", "J"]} />
                 <Shortcut icon={PanelLeft} label="Toggle Sidebar" keys={["Ctrl / Cmd", "B"]} />
                 <Shortcut icon={Save} label="Save" keys={["Ctrl / Cmd", "S"]} />
+                <Shortcut icon={SquareTerminal} label="Run Code" keys={["Ctrl / Cmd", "Enter"]} />
                 <Shortcut icon={FilePlus} label="New File" keys={["Ctrl", "N"]} />
             </div>
 

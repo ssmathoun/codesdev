@@ -18,7 +18,8 @@ export default function Navbar({
     onShare,
     isReadOnly = false,
     onFork,
-    onRun
+    onRun,
+    isExecuting
 }: NavbarProps) {
 
     const navigate = useNavigate();
@@ -112,47 +113,62 @@ export default function Navbar({
 
             <div className="flex items-center gap-4 flex-1 justify-end">
                 {/* Action Icons */}
-                <div className="flex items-center gap-4 mr-2">
-                    {/* Opens the version naming modal */}
+                <div className="flex items-center gap-2 mr-2">
+                    {/* Action: Checkpoint or Fork */}
                     {!isReadOnly ? (
                         <button 
                             onClick={onCheckpoint}
                             title="Create Checkpoint"
-                            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white/90 border border-white/5"
+                            className="flex items-center justify-center gap-2 h-8 bg-white/10 hover:bg-white/20 px-3 rounded text-[10px] uppercase tracking-widest font-bold text-white/90 border border-white/5 transition-all active:scale-95"
                         >
-                            <Save size={16} strokeWidth={2} />
+                            <Save size={14} strokeWidth={2} />
                             <span className="hidden lg:block">Checkpoint</span>
                         </button>
                     ) : (
-                        /* Visitor Action: Fork Button */
                         <button 
                             onClick={onFork}
                             title="Fork this Project"
-                            className="flex items-center gap-2 bg-blue-900 hover:bg-blue-700 px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold text-white shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+                            className="flex items-center justify-center gap-2 h-8 bg-blue-600 hover:bg-blue-500 px-3 rounded text-[10px] uppercase tracking-widest font-bold text-white transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/20"
                         >
-                            <GitFork size={16} strokeWidth={2} />
+                            <GitFork size={14} strokeWidth={2} />
                             <span className="hidden lg:block">Fork</span>
                         </button>
                     )}
 
-                    {!isReadOnly && <div className="h-4 w-px bg-white/10 mx-1" />}
-
+                    {/* Run Button with dynamic state */}
                     <button 
                         onClick={onRun}
-                        className="flex items-center gap-2 bg-white hover:bg-green-600 text-ide-accent hover:text-white px-3 py-1.5 rounded text-[10px] uppercase tracking-widest font-bold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-black/20"
+                        disabled={isExecuting} // Disable button while running
+                        className={`flex items-center justify-center gap-2 h-8 px-3 rounded text-[10px] uppercase tracking-widest font-bold transition-all shadow-lg 
+                            ${isExecuting 
+                                ? "bg-zinc-700 text-zinc-400 cursor-not-allowed" 
+                                : "bg-white hover:bg-green-600 text-ide-accent hover:text-white hover:scale-105 active:scale-95 shadow-black/20"
+                            }`}
                         title="Run Code (Ctrl+Enter)"
                     >
-                        <Play size={14} fill="currentColor" />
-                        <span className="hidden lg:block">Run</span>
+                        {isExecuting ? (
+                            <>
+                                <Loader2 size={12} className="animate-spin" />
+                                <span className="hidden lg:block">Running...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Play size={12} fill="currentColor" />
+                                <span className="hidden lg:block">Run</span>
+                            </>
+                        )}
                     </button>
 
+                    {/* Share/User icons */}
                     {!isReadOnly && (
-                        <>
-                            <button onClick={onShare}>
-                                <Share size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
+                        <div className="flex items-center gap-3 ml-2 border-l border-white/10 pl-4">
+                            <button onClick={onShare} title="Share Project">
+                                <Share size={18} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
                             </button>
-                            <UserPlus size={20} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
-                        </>
+                            <button title="Add Collaborator">
+                                <UserPlus size={18} strokeWidth={1.5} className="hover:opacity-100 cursor-pointer transition-opacity opacity-80" />
+                            </button>
+                        </div>
                     )}
                 </div>
 

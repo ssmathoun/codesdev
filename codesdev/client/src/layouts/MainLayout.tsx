@@ -13,6 +13,31 @@ import CommandPalette from "../components/CommandPallete";
 import { HardDrive, History } from "lucide-react";
 import VersionHistory from "../components/VersionHistory";
 
+// Helper for CSRF
+const getCSRF = () => {
+    const match = document.cookie.match(/csrf_access_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+};
+
+// Language Detector Helper
+const getExecutionLanguage = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const map: Record<string, string> = {
+        'js': 'javascript', 
+        'jsx': 'javascript',
+        'ts': 'typescript', 
+        'tsx': 'typescript',
+        'py': 'python', 
+        'rb': 'ruby', 
+        'go': 'go',
+        'c': 'c', 
+        'cpp': 'cpp', 
+        'java': 'java'
+    };
+    
+    return ext ? map[ext] : null;
+};
+
 export default function MainLayout() {
     const [currentUser, setCurrentUser] = useState<{ 
         username: string; 
@@ -45,33 +70,10 @@ export default function MainLayout() {
         location.state?.projectName || "Loading Project..."
     );
     const [isEditing, setIsEditing] = useState(false);
+    const [isExecuting, setIsExecuting] = useState(false);
 
     // Centralized Read-Only Logic
     const isReadOnly = !!previewData || (isPublic && !isOwner);
-
-    // Helper for CSRF
-    const getCSRF = () => {
-        const match = document.cookie.match(/csrf_access_token=([^;]+)/);
-        return match ? decodeURIComponent(match[1]) : "";
-    };
-
-    // Language Detector Helper
-    const getExecutionLanguage = (filename: string) => {
-        const ext = filename.split('.').pop()?.toLowerCase();
-        const map: Record<string, string> = {
-            'js': 'javascript', 
-            'jsx': 'javascript',
-            'ts': 'typescript', 
-            'tsx': 'typescript',
-            'py': 'python', 
-            'rb': 'ruby', 
-            'go': 'go',
-            'c': 'c', 
-            'cpp': 'cpp', 
-            'java': 'java'
-        };
-        return ext ? map[ext] : null;
-    };
 
     const handleRename = async (newName: string) => {
         // Update UI immediately for snappiness
@@ -880,6 +882,116 @@ export default function MainLayout() {
         ).slice(0, 8);
     }, [searchQuery, itemLookup]);
 
+    /* 
+        The Run Function
+    */
+    const handleRunCode = useCallback(async () => {
+        // Check if a file is open or if code is already running
+        if (!openedId || isExecuting) {
+            if (!openedId) {
+                setLogs(prev => [...prev, { 
+                    text: "System: No file currently open. Open a file to execute code.", 
+                    type: 'error' 
+                }]);
+                setIsConsoleOpen(true);
+            }
+            return;
+        }
+    
+        const currentFile = itemLookup.get(openedId);
+        if (!currentFile || currentFile.type !== "file") return;
+    
+        // Identify the language based on extension
+        const language = getExecutionLanguage(currentFile.name);
+        if (!language) {
+            setLogs(prev => [...prev, { 
+                text: `System: Cannot run '${currentFile.name}'. Extension not supported.`, 
+                type: 'error' 
+            }]);
+            setIsConsoleOpen(true);
+            return;
+        }
+    
+        // Update UI State for Execution
+        setIsExecuting(true);
+        setIsConsoleOpen(true);
+        setLogs(prev => [...prev, { 
+            text: `> Running ${currentFile.name}...`, 
+            type: 'log' 
+        }]);
+    
+        // Gather all files in the tree (allows for imports/modules to work)
+        const allFiles: {name: string, content: string}[] = [];
+        
+        const collectFiles = (items: folderStructureData[], currentPath: string = "") => {
+            items.forEach(item => {
+                const itemPath = currentPath ? `${currentPath}/${item.name}` : item.name;
+                
+                if (item.type === "file") {
+                    allFiles.push({
+                        name: itemPath,
+                        content: item.content || ""
+                    });
+                } else if (item.children) {
+                    collectFiles(item.children, itemPath);
+                }
+            });
+        };
+        
+        // Collect from the active data source (live or preview)
+        collectFiles(previewData || data);
+    
+        try {
+            // POST to the Execution Backend
+            const res = await fetch("http://localhost:5001/api/execute", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": getCSRF() 
+                },
+                body: JSON.stringify({
+                    language: language,
+                    entry_file: currentFile.name,
+                    files: allFiles
+                }),
+                credentials: "include"
+            });
+    
+            const result = await res.json();
+            const out = result.output?.trim();
+            const err = result.error?.trim();
+            
+            // Output Processing
+            if (out) {
+                // Only show standard output if it's not a duplicate of the error message
+                if (out !== err) {
+                    setLogs(prev => [...prev, { text: out, type: 'log' }]);
+                }
+            }
+            
+            if (err) {
+                // Errors appear in Red
+                setLogs(prev => [...prev, { text: err, type: 'error' }]);
+            }
+            
+            // Handle silent crashes (Exit code is non-zero but no logs were produced)
+            if (!out && !err && result.exit_code !== 0) {
+                setLogs(prev => [...prev, { 
+                    text: `Process exited with code ${result.exit_code}`, 
+                    type: 'error' 
+                }]);
+            }
+        } catch (err) {
+            setLogs(prev => [...prev, { 
+                text: "System: Connection to execution engine failed.", 
+                type: 'error' 
+            }]);
+        } finally {
+            // Reset Execution State
+            setIsExecuting(false);
+        }
+    }, [openedId, itemLookup, previewData, data, isExecuting]);
+
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
     useEffect(() => {
@@ -953,7 +1065,7 @@ export default function MainLayout() {
         window.addEventListener('keydown', handleKeyDown, { capture: true });
         
         return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-    }, [activeFolderId, isReadOnly]);
+    }, [activeFolderId, isReadOnly, handleRunCode]);
 
     function handleOpenTab(itemId: number) {
         const path = getPath(itemId);
@@ -973,107 +1085,6 @@ export default function MainLayout() {
 
         // Reset the message after 2 seconds
         setTimeout(() => setIsCopied(false), 2000);
-    };
-
-    // The Run Function
-    const handleRunCode = async () => {
-        // Ensure a file is open
-        if (!openedId) {
-            setLogs(prev => [...prev, { 
-                text: "System: No file currently open.", 
-                type: 'error' 
-            }]);
-            setIsConsoleOpen(true);
-            return;
-        }
-
-        const currentFile = itemLookup.get(openedId);
-        if (!currentFile || currentFile.type !== "file") return;
-
-        // Use your existing helper name
-        const language = getExecutionLanguage(currentFile.name); // <--- FIXED NAME HERE
-        if (!language) {
-            setLogs(prev => [...prev, { 
-                text: `System: Cannot run '${currentFile.name}'. Extension not supported.`, 
-                type: 'error' 
-            }]);
-            setIsConsoleOpen(true);
-            return;
-        }
-
-        setIsSaving(true);
-        setLogs(prev => [...prev, { 
-            text: `> Running ${currentFile.name}...`, 
-            type: 'log' 
-        }]);
-        setIsConsoleOpen(true);
-
-        // 3. Gather all files with relative ports. This is crucial for imports to work in the execution environment.
-        const allFiles: {name: string, content: string}[] = [];
-        
-        // Accepts a 'path' argument to track folders.
-        const collectFiles = (items: folderStructureData[], currentPath: string = "") => {
-            items.forEach(item => {
-                // Build the path: "utils" + "/" + "math.py"
-                const itemPath = currentPath ? `${currentPath}/${item.name}` : item.name;
-                
-                if (item.type === "file") {
-                    allFiles.push({
-                        name: itemPath, // Sends "utils/math.py" instead of just "math.py"
-                        content: item.content || ""
-                    });
-                } else if (item.children) {
-                    // Recursively dive into folders, passing the new path down
-                    collectFiles(item.children, itemPath);
-                }
-            });
-        };
-        
-        // Collect from the active data source
-        collectFiles(previewData || data);
-
-        try {
-            // Send the payload
-            const res = await fetch("http://localhost:5001/api/execute", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": getCSRF() 
-                },
-                body: JSON.stringify({
-                    language: language,
-                    entry_file: currentFile.name,  // The file to execute
-                    files: allFiles                // The context for imports
-                }),
-                credentials: "include"
-            });
-
-            const result = await res.json();
-            const out = result.output?.trim();
-            const err = result.error?.trim();
-            
-            // Show the standard output (White)
-            if (out) {
-                // Only show if it's not a direct duplicate of the error message
-                if (out !== err) {
-                    setLogs(prev => [...prev, { text: out, type: 'log' }]);
-                }
-            }
-            
-            // Show the error output (Red)
-            if (err) {
-                setLogs(prev => [...prev, { text: err, type: 'error' }]);
-            }
-            
-            // System Fallback
-            if (!out && !err && result.exit_code !== 0) {
-                setLogs(prev => [...prev, { text: `Process exited with code ${result.exit_code}`, type: 'error' }]);
-            }
-        } catch (err) {
-            setLogs(prev => [...prev, { text: "System: Execution request failed.", type: 'error' }]);
-        } finally {
-            setIsSaving(false);
-        }
     };
 
     return (
@@ -1326,6 +1337,7 @@ export default function MainLayout() {
                     isReadOnly={isReadOnly}
                     onFork={handleFork}
                     onRun={handleRunCode}
+                    isExecuting={isExecuting}
                 />
 
                 <div className="h-full w-full flex overflow-hidden relative">
