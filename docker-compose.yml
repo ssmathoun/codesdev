@@ -47,7 +47,7 @@ services:
     build:
       context: ./codesdev/client
       args:
-        - VITE_API_URL=http://3.16.156.86:5001
+        - VITE_API_URL=${VITE_API_URL}
     container_name: codesdev-client
     restart: always
     ports:
