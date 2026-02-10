@@ -1,4 +1,4 @@
-# Clean out any old runner containers before starting
+#!/usr/bin/env bash
 echo "Cleaning up zombie runners..."
 docker ps -a -q --filter "label=type=codesdev-runner" | xargs -r docker rm -f
 
