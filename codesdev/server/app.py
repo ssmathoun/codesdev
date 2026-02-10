@@ -58,17 +58,14 @@ db = SQLAlchemy(app, model_class=Base)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-# Define all possible places your frontend might run
-allowed_origins = [
-    "http://localhost",           # Docker/Nginx (Port 80)
-    "http://localhost:5173",      # Vite Local Dev
-    "http://127.0.0.1",           # IP based access
-    "http://127.0.0.1:5173",
-    os.environ.get("CORS_ORIGIN") # Environment variable backup
-]
+CLIENT_URL = os.getenv("CLIENT_URL", "*")
 
 # Configure CORS with the list
-CORS(app, supports_credentials=True, origins=allowed_origins, methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+CORS(app, 
+     resources={r"/*": {"origins": CLIENT_URL}},
+     supports_credentials=True,
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 
 client = docker.from_env()
 
@@ -625,4 +622,4 @@ def execute_code_route():
 
             
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=False, host='0.0.0.0', port=5001)

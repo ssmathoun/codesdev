@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, ChevronLeft, ShieldCheck, Camera, Save, User as UserIcon, ArrowLeft } from "lucide-react";
 import { AVATAR_MAP } from "../constants/avatars";
+import { API_BASE_URL } from "../config";
 
 export default function ProfilePage() {
     const navigate = useNavigate();
@@ -23,7 +24,7 @@ export default function ProfilePage() {
     const [message, setMessage] = useState({ text: "", type: "" });
     const [stagedAvatar, setStagedAvatar] = useState<{ id?: string; url?: string } | null>(null);
 
-    const API_BASE = "http://localhost:5001/api";
+    const API_BASE = `${API_BASE_URL}/api`;
 
     // Helper for CSRF
     const getCSRF = () => {

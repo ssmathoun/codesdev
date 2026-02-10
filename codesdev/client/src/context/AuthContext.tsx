@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { authService } from "../services/auth";
 import type { AuthContextType } from "../types/types";
+import { API_BASE_URL } from '../config';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ME_ENDPOINT = "http://localhost:5001/api/me";
+const ME_ENDPOINT = `${API_BASE_URL}/api/me`;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);

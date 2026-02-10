@@ -32,7 +32,7 @@ services:
       - ./codesdev/server/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      CORS_ORIGIN: http://localhost
+      CORS_ORIGIN: "*"
       DOCKER_HOST: unix:///var/run/docker.sock
     ports:
       - "5001:5001"
@@ -47,6 +47,8 @@ services:
   client:
     build:
       context: ./codesdev/client
+      args:
+        - VITE_API_URL=http://3.16.156.86:5001
     container_name: codesdev-client
     restart: always
     ports:
@@ -55,8 +57,6 @@ services:
       - server
     volumes:
       - ./codesdev/client:/app:delegated
-    environment:
-      - REACT_APP_API_URL=http://localhost:5001
 
   python-runner:
     image: codesdev-python-runner

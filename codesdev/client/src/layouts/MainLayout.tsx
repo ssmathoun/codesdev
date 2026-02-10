@@ -12,6 +12,7 @@ import OutputConsole from "../components/OutputConsole"
 import CommandPalette from "../components/CommandPallete";
 import { HardDrive, History } from "lucide-react";
 import VersionHistory from "../components/VersionHistory";
+import { API_BASE_URL } from '../config';
 
 // Helper for CSRF
 const getCSRF = () => {
@@ -81,7 +82,7 @@ export default function MainLayout() {
     
         try {
             // Persist to backend
-            const response = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}`, {
                 method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -131,7 +132,7 @@ export default function MainLayout() {
     const confirmRevert = async () => {
         if (!versionToRestore) return;
         try {
-            const res = await fetch(`http://localhost:5001/api/versions/${versionToRestore}/revert`, {
+            const res = await fetch(`${API_BASE_URL}/api/versions/${versionToRestore}/revert`, {
                 method: "POST",
                 headers: { "X-CSRF-TOKEN": getCSRF() },
                 credentials: "include"
@@ -176,7 +177,7 @@ export default function MainLayout() {
         if (!versionName.trim()) return;
     
         try {
-            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/version`, {
+            const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/version`, {
                 method: "POST",
                 headers: { 
                     'Content-Type': 'application/json', 
@@ -206,7 +207,7 @@ export default function MainLayout() {
 
     const fetchHistory = useCallback(async () => {
         try {
-            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/history`, { 
+            const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/history`, { 
                 credentials: "include" 
             });
             if (res.ok) {
@@ -235,7 +236,7 @@ export default function MainLayout() {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const res = await fetch("http://localhost:5001/api/me", { credentials: "include" });
+                const res = await fetch(`${API_BASE_URL}/api/me`, { credentials: "include" });
                 if (res.ok) {
                     const data = await res.json();
                     setCurrentUser(data);
@@ -251,7 +252,7 @@ export default function MainLayout() {
         const fetchProjectData = async () => {
             setIsLoading(true);
             try {
-                const res = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
+                const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}`, {
                     credentials: "include"
                 });
                 
@@ -282,7 +283,7 @@ export default function MainLayout() {
 
     const toggleShare = async (newStatus: boolean) => {
         try {
-            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/share`, {
+            const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/share`, {
                 method: "PUT",
                 headers: { 'Content-Type': 'application/json', "X-CSRF-TOKEN": getCSRF() },
                 body: JSON.stringify({ is_public: newStatus }),
@@ -298,7 +299,7 @@ export default function MainLayout() {
     
     const handlePreviewVersion = async (versionId: number) => {
         try {
-            const res = await fetch(`http://localhost:5001/api/versions/${versionId}`, { 
+            const res = await fetch(`${API_BASE_URL}/api/versions/${versionId}`, {
                 credentials: "include" 
             });
             if (res.ok) {
@@ -392,7 +393,7 @@ export default function MainLayout() {
             setIsSaving(true);
             try {
                 // Regular Live Save
-                const res = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
+                const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCSRF() },
                     body: JSON.stringify({ file_tree: updatedTree }),
@@ -406,7 +407,7 @@ export default function MainLayout() {
                 // Automatic Versioning
                 const now = Date.now();
                 if (now - lastSnapshotTime > SNAPSHOT_INTERVAL) {
-                    await fetch(`http://localhost:5001/api/projects/${projectId}/version`, {
+                    await fetch(`${API_BASE_URL}/api/projects/${projectId}/version`, {
                         method: "POST",
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCSRF() },
                         body: JSON.stringify({ label: null }), // Null label = "Auto-save"
@@ -845,7 +846,7 @@ export default function MainLayout() {
 
     const handleFork = async () => {
         try {
-            const res = await fetch(`http://localhost:5001/api/projects/${projectId}/fork`, {
+            const res = await fetch(`${API_BASE_URL}/api/projects/${projectId}/fork`, {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json", 
@@ -959,7 +960,7 @@ export default function MainLayout() {
 
         try {
             // POST to the Execution Backend
-            const res = await fetch("http://localhost:5001/api/execute", {
+            const res = await fetch(`${API_BASE_URL}/api/execute`, {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",

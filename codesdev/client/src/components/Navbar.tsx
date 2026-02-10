@@ -2,6 +2,7 @@ import {Cloud, PanelLeft, Terminal, GitBranch, Command, Search, Play, Share, Use
 import { Link, useNavigate } from "react-router-dom";
 import type { NavbarProps } from "../types/types";
 import { AVATAR_MAP } from "../constants/avatars";
+import { API_BASE_URL } from '../config';
 
 export default function Navbar({ 
     user,
@@ -32,7 +33,7 @@ export default function Navbar({
 
     const handleLogout = async () => {
         try {
-            const res = await fetch(`http://localhost:5001/api/logout`, {
+            const res = await fetch(`${API_BASE_URL}/api/logout`, {
                 method: "POST",
                 headers: { 
                     "X-CSRF-TOKEN": getCSRF()

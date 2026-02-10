@@ -8,6 +8,7 @@ import {
 import Modal from "../components/Modal";
 import { AVATAR_MAP } from "../constants/avatars";
 import type { Category, Collaborator, ViewMode, ModalType } from "../types/types";
+import { API_BASE_URL } from '../config';
 
 // Helper to handle relative and absolute dating
 const formatProjectDate = (dateInput: any, currentTime: number) => {
@@ -24,7 +25,7 @@ const formatProjectDate = (dateInput: any, currentTime: number) => {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const API_BASE = "http://localhost:5001/api";
+  const API_BASE = `${API_BASE_URL}/api`;
   const [user, setUser] = useState<any>(null);
   
   // Layout and Resizing State

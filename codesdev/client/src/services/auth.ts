@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:5001/api";
+import { API_BASE_URL } from '../config';
+
+const API_URL = `${API_BASE_URL}/api`;
 
 // Helper to get CSRF token from cookies
 function getCookie(name: string) {
@@ -10,7 +12,7 @@ function getCookie(name: string) {
 export const authService = {
   async register (userData: any) {
     try {
-      const response = await fetch('http://localhost:5001/api/register', {
+      const response = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
