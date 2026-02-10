@@ -38,13 +38,17 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
+# Environment Detection
+is_prod = os.getenv("FLASK_ENV") == "production"
+has_https = os.getenv("HAS_HTTPS", "false").lower() == "true"
+
 # JWT and Cookie Security Configuration
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
 app.config['JWT_REFRESH_COOKIE_PATH'] = '/api/token/refresh'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # Enable CSRF protection
-app.config['JWT_COOKIE_SECURE'] = False
+app.config['JWT_COOKIE_SECURE'] = is_prod and has_https
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_COOKIE_HTTPONLY'] = True   # Access token stays secure
 app.config['JWT_CSRF_CHECK_FORM'] = False # We use headers, not forms
@@ -58,10 +62,11 @@ db = SQLAlchemy(app, model_class=Base)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-CLIENT_URL = os.getenv("CLIENT_URL", "*")
+raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://localhost:5173")
+allowed_origins = [origin.strip() for origin in raw_origins.split(",")]
 
 CORS(app, 
-     origins=[os.getenv("CLIENT_URL", "http://localhost:5173")],
+     origins=allowed_origins,
      supports_credentials=True
 )
 
