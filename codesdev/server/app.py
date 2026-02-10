@@ -261,7 +261,7 @@ def create_project():
     db.session.commit()
     return jsonify({"id": new_project.id, "name": new_project.name, "created_at": new_project.created_at.isoformat() + 'Z'}), 201
 
-@app.route('/api/me', methods=['GET'])
+@app.route('/api/me', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def get_current_user():
     user_id = int(get_jwt_identity())
