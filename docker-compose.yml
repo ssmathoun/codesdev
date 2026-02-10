@@ -22,7 +22,7 @@ services:
   # Service 2: The Backend (Flask)
   server:
     build: 
-      context: ./server
+      context: ./codesdev/server
       dockerfile: Dockerfile
     container_name: codesdev-server
     restart: always
@@ -38,13 +38,13 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./server:/app:delegated
+      - ./codesdev/server:/app:delegated
       - /var/run/docker.sock:/var/run/docker.sock
 
   # Service 3: The Frontend (React + Nginx)
   client:
     build:
-      context: ./client
+      context: ./codesdev/client
       args:
         - VITE_API_URL=http://3.16.156.86:5001
     container_name: codesdev-client
@@ -54,7 +54,7 @@ services:
     depends_on:
       - server
     volumes:
-      - ./client:/app:delegated
+      - ./codesdev/client:/app:delegated
 
   python-runner:
     image: codesdev-python-runner
