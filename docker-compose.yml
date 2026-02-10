@@ -25,6 +25,7 @@ services:
       context: ./codesdev/server
       dockerfile: Dockerfile
     container_name: codesdev-server
+    command: sh -c "chmod +x start.sh && ./start.sh"
     restart: always
     user: root
     env_file: .env
