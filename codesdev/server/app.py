@@ -44,7 +44,7 @@ app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
 app.config['JWT_REFRESH_COOKIE_PATH'] = '/api/token/refresh'
 app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # Enable CSRF protection
-app.config['JWT_COOKIE_SECURE'] = False       # Set to True in Production (HTTPS)
+app.config['JWT_COOKIE_SECURE'] = True  # Only send cookies over HTTPS
 app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
 app.config['JWT_COOKIE_HTTPONLY'] = True   # Access token stays secure
 app.config['JWT_CSRF_CHECK_FORM'] = False # We use headers, not forms
@@ -60,11 +60,9 @@ jwt = JWTManager(app)
 
 CLIENT_URL = os.getenv("CLIENT_URL", "*")
 
-# Configure CORS with the list
 CORS(app, 
-     resources={r"/*": {"origins": CLIENT_URL}},
-     supports_credentials=True,
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+     origins=[os.getenv("CLIENT_URL", "http://localhost:5173")],
+     supports_credentials=True
 )
 
 client = docker.from_env()
@@ -144,6 +142,11 @@ class Version(db.Model):
     label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, default=None) 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     project: Mapped["Project"] = relationship(back_populates="versions")
+
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"}), 200
 
 # JWT Revocation Check
 @jwt.token_in_blocklist_loader
@@ -578,7 +581,7 @@ def execute_code_route():
             working_dir="/app",
             mem_limit="128m",
             network_disabled=True,
-            tty=False
+            labels={"type": "codesdev-runner"}
         )
 
         # Copy the tar archive into the container
@@ -620,6 +623,6 @@ def execute_code_route():
                 container.remove(force=True)
             except: pass
 
-            
+     
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5001)

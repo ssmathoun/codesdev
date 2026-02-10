@@ -6,6 +6,32 @@ import type { folderStructureData } from "../types/types";
 import FileTabs from './FileTabs';
 import WelcomePage from "./WelcomePage";
 
+const getLanguage = (fileName?: string) => {
+  if (!fileName) return 'plaintext';
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  
+  const languageMap: Record<string, string> = {
+      'js': 'javascript',
+      'jsx': 'javascript',
+      'ts': 'typescript',
+      'tsx': 'typescript',
+      'py': 'python',
+      'html': 'html',
+      'css': 'css',
+      'json': 'json',
+      'md': 'markdown',
+      'c': 'c',
+      'cpp': 'cpp',
+      'h': 'cpp',
+      'hpp': 'cpp',
+      'java': 'java',
+      'rb': 'ruby',
+      'go': 'go'
+  };
+
+  return ext ? languageMap[ext] : 'plaintext';
+};
+
 export default function CodeEditor({
   data,
   readOnly = false,
@@ -44,32 +70,6 @@ export default function CodeEditor({
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null); // Stores current editor content
   const monaco = useMonaco(); // Access the monaco instance
   const activeFile = openedId !== null ? itemLookup.get(openedId) : null;
-
-  const getLanguage = (fileName?: string) => {
-    if (!fileName) return 'plaintext';
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    
-    const languageMap: Record<string, string> = {
-        'js': 'javascript',
-        'jsx': 'javascript',
-        'ts': 'typescript',
-        'tsx': 'typescript',
-        'py': 'python',
-        'html': 'html',
-        'css': 'css',
-        'json': 'json',
-        'md': 'markdown',
-        'c': 'c',
-        'cpp': 'cpp',
-        'h': 'cpp',
-        'hpp': 'cpp',
-        'java': 'java',
-        'rb': 'ruby',
-        'go': 'go'
-    };
-
-    return languageMap[ext!] || 'plaintext';
-};
   
   const virtualPath =
     activeFile && openedId
@@ -90,6 +90,8 @@ export default function CodeEditor({
           const fullPath = `file:///${pathParts.join('/')}`;
           const uri = monaco.Uri.parse(fullPath);
           currentUris.add(uri.toString());
+
+          if (item.id === openedId) return;
 
           const model = monaco.editor.getModel(uri);
 

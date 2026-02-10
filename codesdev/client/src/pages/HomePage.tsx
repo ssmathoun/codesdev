@@ -81,7 +81,7 @@ export default function HomePage() {
       }
     };
     fetchUser();
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
