@@ -1,4 +1,4 @@
-# Codesdev | Cloud-Native Web IDE
+# Codesdev | Full-Stack Web IDE
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg?style=flat-square)
 ![Status](https://img.shields.io/badge/status-live%20production-success.svg?style=flat-square)
