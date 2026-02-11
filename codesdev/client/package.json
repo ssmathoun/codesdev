@@ -22,7 +22,7 @@
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "^10.0.1",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^24.10.12",
     "@types/react": "^19.2.5",
