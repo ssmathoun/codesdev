@@ -43,9 +43,14 @@ export default function LandingPage() {
       
       {/* Navbar */}
       <nav className="flex justify-between items-center px-8 py-6 sticky top-0 bg-ide-bg/80 backdrop-blur-xl z-50 border-b border-white/5">
-        <div className="text-2xl font-normal tracking-tight">
-          codesdev
+        <div className="flex items-center gap-3">
+          <div className="text-2xl font-normal tracking-tight">codesdev</div>
+          {/* Version Badge */}
+          <span className="bg-white/5 border border-white/10 text-[10px] text-zinc-500 px-2 py-0.5 rounded-md font-mono mt-1">
+            v1.0.0
+          </span>
         </div>
+        
         <div className="flex gap-8 items-center font-normal">
           <button onClick={() => navigate("/login")} className="text-zinc-400 hover:text-white transition-colors text-sm">Login</button>
           <button onClick={() => navigate("/signup")} className="bg-white text-black px-6 py-2 rounded-full font-normal hover:bg-ide-accent hover:text-white transition-all text-sm">
