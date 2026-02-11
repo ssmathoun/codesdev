@@ -2,7 +2,9 @@ name: Codesdev CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
   workflow_dispatch:
 
 concurrency:
@@ -58,7 +60,7 @@ jobs:
 
       - name: Install Node Deps
         working-directory: ./codesdev/client
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Check Build (React)
         working-directory: ./codesdev/client
@@ -67,6 +69,7 @@ jobs:
   deploy:
     name: Deploy to EC2
     needs: [backend-ci, frontend-ci]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: SSH & Deploy
@@ -84,16 +87,18 @@ jobs:
             docker image prune -f
 
   notify:
-    name: Status Report
-    needs: [deploy]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Report Status
-        run: |
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "Codesdev Deployed Successfully!"
-          else
-            echo "Deployment Failed."
-            exit 1
-          fi
+      name: Status Report
+      needs: [deploy]
+      if: always()
+      runs-on: ubuntu-latest
+      steps:
+        - name: Report Status
+          run: |
+            if [ "${{ needs.deploy.result }}" == "success" ]; then
+              echo "Codesdev Deployed Successfully!"
+            elif [ "${{ needs.deploy.result }}" == "skipped" ]; then
+              echo "CI Checks Passed. Deployment skipped (not on main branch)."
+            else
+              echo "Deployment Failed."
+              exit 1
+            fi
