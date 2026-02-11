@@ -86,7 +86,7 @@ jobs:
             docker compose up -d --build
             docker image prune -f
 
-  notify:
+notify:
     name: Status Report
     needs: [deploy]
     if: always()
@@ -96,6 +96,8 @@ jobs:
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
             echo "Codesdev Deployed Successfully!"
+          elif [ "${{ needs.deploy.result }}" == "skipped" ]; then
+            echo "CI Checks Passed. Deployment skipped (not on main branch)."
           else
             echo "Deployment Failed."
             exit 1
