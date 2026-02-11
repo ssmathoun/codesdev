@@ -13,10 +13,20 @@ updates:
 
   - package-ecosystem: "pip"
     directory: "/codesdev/server"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
-      
+    groups:
+      backend-dependencies:
+        patterns:
+          - "*"
+
   - package-ecosystem: "npm"
     directory: "/codesdev/client"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
+    groups:
+      frontend-dependencies:
+        patterns:
+          - "*"

@@ -2,7 +2,9 @@ name: Codesdev CI/CD
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
   workflow_dispatch:
 
 concurrency:
@@ -67,6 +69,7 @@ jobs:
   deploy:
     name: Deploy to EC2
     needs: [backend-ci, frontend-ci]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: SSH & Deploy
