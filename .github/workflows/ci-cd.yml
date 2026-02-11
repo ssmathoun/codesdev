@@ -1,0 +1,99 @@
+name: Codesdev CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-ci:
+    name: Flask CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Python Deps
+        working-directory: ./codesdev/server
+        run: |
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint (Flake8)
+        working-directory: ./codesdev/server
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Test (Pytest)
+        working-directory: ./codesdev/server
+        run: |
+          if [ -d "tests" ] || [ -f "test_*.py" ]; then
+            pytest
+          else
+            echo "No tests found. Skipping..."
+          fi
+
+  frontend-ci:
+    name: React CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: './codesdev/client/package-lock.json'
+
+      - name: Install Node Deps
+        working-directory: ./codesdev/client
+        run: npm ci
+
+      - name: Check Build (React)
+        working-directory: ./codesdev/client
+        run: npm run build
+
+  deploy:
+    name: Deploy to EC2
+    needs: [backend-ci, frontend-ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH & Deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd /home/ubuntu/codesdev
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
+            docker image prune -f
+
+  notify:
+    name: Status Report
+    needs: [deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report Status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "Codesdev Deployed Successfully!"
+          else
+            echo "Deployment Failed."
+            exit 1
+          fi
