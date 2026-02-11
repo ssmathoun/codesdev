@@ -60,7 +60,7 @@ jobs:
 
       - name: Install Node Deps
         working-directory: ./codesdev/client
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Check Build (React)
         working-directory: ./codesdev/client
