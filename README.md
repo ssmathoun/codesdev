@@ -1,36 +1,45 @@
-# Codesdev | Full-Stack Web IDE
+# Codesdev | Cloud-Native Web IDE
 
-> **⚠️ Status: Active Development**
->
-> *Codesdev is a browser-based, full-stack Cloud IDE featuring a secure, containerized execution engine and intelligent file management.*
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg?style=flat-square)
+![Status](https://img.shields.io/badge/status-live%20production-success.svg?style=flat-square)
+![Build](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square)
 
-**Codesdev** brings a professional "local-feel" development experience to the web. Beyond just editing, it now features a **Polyglot Execution Sandbox** capable of running complex, multi-file projects in 8+ languages securely. Built with **React/TypeScript** and a robust **Python (Flask)** backend, it leverages Docker for both deployment and isolated user code execution.
+<img width="100%" alt="Codesdev Editor" src="https://github.com/user-attachments/assets/9fe0d576-8c0a-4c21-9cde-a6c6e45efdab" />
+
+> **🚀 Live Deployment:** [http://13.58.26.18](http://13.58.26.18)
+> *(Hosted on AWS EC2)*
+
+**Codesdev** is a browser-based integrated development environment (IDE) featuring a secure, containerized execution runtime. It allows users to write, compile, and run multi-file projects in 8+ languages directly from the web.
+
+The system is built on a **microservices architecture** using **React 19** and **Flask**, orchestrated via **Docker Compose**. It demonstrates a production-grade DevOps workflow, featuring isolated sandboxing for code execution and automated CI/CD pipelines for deployment.
 
 ---
 
-## 🚀 Key Features
+## ⚙️ Engineering Highlights
 
-### ⚡ Polyglot Code Execution (New)
-A secure, containerized runner that executes code in real-time.
-* **Multi-Language Support:** Native execution for **Python, JavaScript, TypeScript, Ruby, Go, C, C++, and Java**.
-* **Smart Path Resolution:** The engine intelligently handles nested directories, relative imports, and complex file structures (e.g., running `server/src/app.py` works seamlessly).
-* **Isolated Sandboxing:** User code runs in ephemeral Docker containers with strict memory and network limits for security.
+### ☁️ Cloud Infrastructure & DevOps
+* **AWS Architecture:** Deployed on **AWS EC2** using Docker Compose to orchestrate separate services for the frontend, backend API, and database.
+* **Reverse Proxy:** Implemented **Nginx** as the gateway to handle port forwarding, static asset serving, and strict CORS configuration between the React client and Flask API.
+* **CI/CD Pipeline:** Configured **GitHub Actions** to automate linting, build verification, and zero-downtime SSH deployments to the production server upon merge.
+
+### ⚡ Containerized Execution Engine
+A custom backend service that manages ephemeral Docker containers for user code execution.
+* **Isolated Sandboxing:** Leverages the **Docker SDK for Python** to spin up temporary containers for every execution request, ensuring complete process isolation and security.
+* **Recursive Path Resolution:** Custom logic to resolve relative imports and nested directory paths, enabling the execution of complex, multi-file project structures (e.g., `src/modules/app.py`).
+* **Polyglot Support:** Native runtime support for Python, JavaScript, TypeScript, Ruby, Go, C, C++, and Java.
 
 ### 📁 Virtual File System (VFS)
-A specialized file management engine built on **PostgreSQL JSONB** for high-performance structure handling.
-* **Recursive Operations:** Create, rename, delete, and move nested files/folders.
-* **Context Aware:** Right-click context menus, drag-and-drop resizing, and file tab management.
-* **Command Palette:** Quick file navigation using `Ctrl/Cmd + P`.
+* **PostgreSQL JSONB:** Utilizes PostgreSQL's JSONB data type to store directory trees, allowing for atomic operations on nested structures without recursive SQL queries.
+* **State Management:** Implements optimistic UI updates for file creation, renaming, and deletion, syncing state asynchronously with the database.
 
 ### 💾 Versioning & Persistence
-* **Auto-Save & Snapshots:** The IDE automatically creates checkpoints of your work.
-* **Time Travel:** Browse project history and **restore** your workspace to any previous state instantly.
-* **Forking:** Users can fork public projects to create their own independent copies.
+* **Automated Checkpoints:** Implements an auto-save mechanism that captures periodic snapshots of the project file tree.
+* **State Restoration:** Enables "Time Travel" debugging by allowing users to browse version history and roll back the workspace to previous states.
+* **Project Forking:** Supports deep cloning of public projects, allowing users to instantiate independent copies of existing codebases for isolated development.
 
-### ⌨️ Professional Editor
-Powered by the **Monaco Editor** (VS Code engine):
-* **Intelligent Highlighting:** Syntax coloring for all supported languages.
-* **Integrated Console:** Real-time stdout/stderr streaming from the execution engine.
+### 💻 Editor Integration
+* **Monaco Editor:** Integrates the core VS Code editor engine for standard features like syntax highlighting, linting, and bracket matching.
+* **Stream Handling:** Captures `stdout` and `stderr` from backend containers via HTTP/WebSocket and renders them to the integrated console in real-time.
 
 ---
 
@@ -38,20 +47,37 @@ Powered by the **Monaco Editor** (VS Code engine):
 
 | Layer | Technology |
 | :--- | :--- |
-| **Frontend** | React 19, TypeScript, Tailwind CSS, Monaco Editor, Lucide Icons |
-| **Backend** | Flask (Python), SQLAlchemy, Docker SDK for Python |
-| **Database** | PostgreSQL (JSONB optimized for VFS) |
-| **Execution** | Docker Containers (Ephemeral Runners) |
-| **Security** | JWT (HttpOnly Cookies), CSRF Protection |
+| **Infrastructure** | AWS EC2 (Ubuntu), Nginx, Docker Compose |
+| **DevOps** | GitHub Actions (CI/CD), SSH, Docker Hub |
+| **Frontend** | React 19, TypeScript, Tailwind CSS, Monaco Editor, Vite |
+| **Backend** | Flask (Python), SQLAlchemy, Docker SDK |
+| **Database** | PostgreSQL (JSONB) |
 
 ---
 
-## 📦 Installation & Setup
+## 🏗 System Architecture
 
-The entire Codesdev environment (Frontend, Backend, DB, and Runners) is containerized using **Docker**.
+### 1. Cloud Deployment
+The production environment runs as a containerized stack on AWS:
+1.  **Nginx:** Entry point for all traffic; routes API requests to Flask and serves React static files.
+2.  **Service Isolation:** Frontend and Backend run on an internal Docker network, inaccessible from the public internet except through the proxy.
+3.  **Persistence:** User data and file structures are persisted via Docker volumes.
+
+### 2. Execution Pipeline
+When a user executes code:
+1.  **Serialization:** The frontend bundles the current file tree state into a JSON payload.
+2.  **Entry Point Resolution:** The backend parses the directory structure to identify the target file and dependencies.
+3.  **Container Provisioning:** A language-specific Docker image (e.g., `python:3.9-slim`) is instantiated.
+4.  **Execution & Teardown:** Code is injected and executed; output streams to the client, and the container is immediately destroyed to release resources.
+
+---
+
+## 📦 Local Development
+
+To run the full stack locally:
 
 ### Prerequisites
-* **Docker Desktop** (Must be running to support the execution engine)
+* **Docker Desktop** (Required for the execution engine)
 * **Docker Compose**
 
 ### Quick Start
@@ -61,44 +87,36 @@ The entire Codesdev environment (Frontend, Backend, DB, and Runners) is containe
 git clone https://github.com/ssmathoun/codesdev.git
 cd codesdev
 
-# 2. Create environment file
+# 2. Configure environment
 cp .env.example .env
 
-# 3. Launch the stack
-docker-compose up --build
+# 3. Build and Run
+docker compose up --build
 ```
 
-* **App Entry:** [http://localhost](http://localhost) (via Nginx)
-* **Direct Frontend (Dev):** [http://localhost:5173](http://localhost:5173)
-* **Direct API:** [http://localhost:5001](http://localhost:5001)
-
----
-
-## 🏗 System Architecture
-
-### 1. The Execution Pipeline
-When a user clicks "Run":
-1.  **Bundle:** The frontend packages the file tree into a JSON payload.
-2.  **Resolve:** The backend's **Robust Path Resolver** identifies the correct entry point (even in deep subdirectories).
-3.  **Containerize:** A language-specific Docker container (e.g., `python:3.9-slim`) is spun up.
-4.  **Execute:** The code is injected, executed, and the output is streamed back to the frontend console.
-5.  **Cleanup:** The container is immediately destroyed to ensure isolation.
-
-### 2. Data Persistence
-* **JSONB Storage:** The entire project file tree is stored as a JSONB object in PostgreSQL, allowing for single-query retrieval of complex folder structures.
-* **Optimistic UI:** The frontend updates instantly while syncing to the backend in the background.
+* **App Entry:** [http://localhost:3000](http://localhost:3000) (via Nginx)
+* **API Endpoint:** [http://localhost:5001](http://localhost:5001)
 
 ---
 
 ## 🗺 Roadmap
 
-- [x] **Secure Execution Sandbox:** Isolated container environment for running user code.
-- [x] **Smart Path Resolution:** Support for relative imports and nested execution.
-- [x] **Project Forking:** Ability to clone public projects.
-- [ ] **Cloud Deployment:** Production hosting on **AWS EC2** (optimized for Docker execution) & **RDS**.
-- [ ] **CI/CD Pipeline:** Automated deployment workflows via GitHub Actions.
-- [ ] **Real-time Collaboration:** WebSocket integration for multi-user editing (Development Branch: `feat-collaboration`).
-- [ ] **Interactive Terminal:** Full TTY support for user input during execution.
+### ✅ Completed (v1.0)
+- [x] **Production Deployment:** AWS EC2 with Nginx Reverse Proxy.
+- [x] **DevOps Pipeline:** Automated CI/CD via GitHub Actions.
+- [x] **Context-Aware Runtime:** Recursive path resolution handling complex imports and nested structures.
+- [x] **VFS Persistence:** PostgreSQL JSONB file system with state preservation.
+
+### 🚧 In Progress (v1.1 - Stabilization)
+- [ ] **Security Hardening:** Implementation of **HTTPS/SSL** via Let's Encrypt.
+- [ ] **Advanced CI/CD:** Adding unit test gates, health checks, and pushing images to a **Docker Registry**.
+- [ ] **Automated Quality Gates:** Enforcing Branch Protection rules to require successful CI builds before merging to `main`.
+
+### 🔮 Future Engineering (v2.0)
+- [ ] **Infrastructure Scaling:** Migrating the database to **AWS RDS** for high availability.
+- [ ] **Real-time Collaboration:** WebSocket integration (Socket.io) for multi-user editing.
+- [ ] **Interactive Terminal:** Full TTY support (xterm.js) for handling user input.
+- [ ] **Accessibility:** Improving UI compliance with WCAG standards.
 
 ---
 
