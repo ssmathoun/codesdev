@@ -64,6 +64,8 @@ jobs:
 
       - name: Check Build (React)
         working-directory: ./codesdev/client
+        env:
+          VITE_API_URL: http://13.58.26.18:5001
         run: npm run build
 
   deploy:
