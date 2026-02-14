@@ -40,20 +40,18 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 # Environment Detection
 is_prod = os.getenv("FLASK_ENV") == "production"
-has_https = os.getenv("HAS_HTTPS", "false").lower() == "true"
 
-# JWT and Cookie Security Configuration
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')
 app.config['JWT_TOKEN_LOCATION'] = ['cookies']
 app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
 app.config['JWT_REFRESH_COOKIE_PATH'] = '/api/token/refresh'
-app.config['JWT_COOKIE_CSRF_PROTECT'] = True  # Enable CSRF protection
-app.config['JWT_COOKIE_SECURE'] = is_prod and has_https
-app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
-app.config['JWT_COOKIE_HTTPONLY'] = True   # Access token stays secure
-app.config['JWT_CSRF_CHECK_FORM'] = False # We use headers, not forms
+app.config['JWT_COOKIE_CSRF_PROTECT'] = True  
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=2)
-app.config['JWT_CSRF_COOKIE_HTTPONLY'] = False # This allows document.cookie to see it
+app.config['JWT_COOKIE_SECURE'] = is_prod
+app.config['JWT_COOKIE_SAMESITE'] = 'Lax'
+app.config['JWT_COOKIE_HTTPONLY'] = True
+app.config['JWT_CSRF_CHECK_FORM'] = False
+app.config['JWT_CSRF_COOKIE_HTTPONLY'] = False
 app.config['JWT_ACCESS_CSRF_HEADER_NAME'] = "X-CSRF-TOKEN"
 app.config['JWT_CSRF_IN_COOKIES'] = True
 
@@ -62,7 +60,7 @@ db = SQLAlchemy(app, model_class=Base)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
-raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://localhost:5173")
+raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000")
 allowed_origins = [origin.strip() for origin in raw_origins.split(",")]
 
 CORS(app, 
