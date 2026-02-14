@@ -6,7 +6,7 @@
 
 <img width="100%" alt="Codesdev Editor" src="https://github.com/user-attachments/assets/9fe0d576-8c0a-4c21-9cde-a6c6e45efdab" />
 
-> **🚀 Live Deployment:** [http://13.58.26.18](http://13.58.26.18)
+> **🚀 Live Deployment:** [https://codesdev.dev](https://codesdev.dev/)
 > *(Hosted on AWS EC2)*
 
 **Codesdev** is a browser-based integrated development environment (IDE) featuring a secure, containerized execution runtime. It allows users to write, compile, and run multi-file projects in 8+ languages directly from the web.
