@@ -1,5 +1,6 @@
 import os
 import docker
+from docker.errors import ImageNotFound
 import uuid
 from datetime import timedelta
 from flask import Flask, request, jsonify, make_response
@@ -80,8 +81,8 @@ LANGUAGE_CONFIG = {
         "command": ["sh", "-c", "echo \"$CODE\" > index.js && node index.js"],
     },
     "typescript": {
-        "image": "node:20-slim", # We use Node to run simple TS (via ts-node if installed, or just treating as JS)
-        "command": ["sh", "-c", "echo \"$CODE\" > index.js && node index.js"], 
+        "image": "codesdev-ts-runner", 
+        "command": ["tsx", "index.ts"],
     },
     "ruby": {
         "image": "ruby:3.2-slim",
@@ -563,8 +564,10 @@ def execute_code_route():
         run_cmd = config['command']
         if language == "python":
             run_cmd = f"python \"{entry_file}\""
-        elif language in ["javascript", "typescript"]:
+        elif language == "javascript":
             run_cmd = f"node \"{entry_file}\""
+        elif language == "typescript":
+            run_cmd = f"tsx \"{entry_file}\""
         elif language == "ruby":
             run_cmd = f"ruby \"{entry_file}\""
         elif language == "go":
@@ -578,14 +581,29 @@ def execute_code_route():
             run_cmd = f"java \"{entry_file}\""
 
         # Create the Container (Stopped state)
-        container = client.containers.create(
-            image=config['image'],
-            command=["sh", "-c", run_cmd],
-            working_dir="/app",
-            mem_limit="128m",
-            network_disabled=True,
-            labels={"type": "codesdev-runner"}
-        )
+        try:
+            container = client.containers.create(
+                image=config['image'],
+                command=["sh", "-c", run_cmd],
+                working_dir="/app",
+                mem_limit="256m",
+                network_disabled=True,
+                labels={"type": "codesdev-runner"}
+            )
+        except docker.errors.ImageNotFound:
+            # If the image isn't on the EC2, pull it first.
+            print(f"Image {config['image']} not found locally. Pulling from Docker Hub...", flush=True)
+            client.images.pull(config['image'])
+            
+            # Now try creating it again
+            container = client.containers.create(
+                image=config['image'],
+                command=["sh", "-c", run_cmd],
+                working_dir="/app",
+                mem_limit="256m",
+                network_disabled=True,
+                labels={"type": "codesdev-runner"}
+            )
 
         # Copy the tar archive into the container
         container.put_archive("/app", file_obj)
