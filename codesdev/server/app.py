@@ -610,10 +610,11 @@ def execute_code_route():
 
         # Start the container
         container.start()
+        timeout_duration = 15 if language in ["go", "cpp", "c", "java"] else 5
 
         # Wait for result
         try:
-            result = container.wait(timeout=5)
+            result = container.wait(timeout=timeout_duration)
             exit_code = result.get('StatusCode', 1)
         except Exception:
             try:
@@ -621,7 +622,7 @@ def execute_code_route():
             except: pass
             return jsonify({
                 "output": None, 
-                "error": "Error: Execution Timed Out (Limit: 5s)", 
+                "error": f"Error: Execution Timed Out (Limit: {timeout_duration}s)",
                 "exit_code": 124
             })
 
